@@ -1,0 +1,30 @@
+2026-11-16 20:31:59 - INFO - saving to:/content/work/exp/pmsn_mc_T50_fill_3ep/lr0.01_nlr0.001_wd0_drop_0.2_d352_s4_seed1111
+2026-11-16 20:31:59 - INFO - args:Namespace(lr=0.01, neuron_lr=0.001, weight_decay=0, epochs=3, step_lr=False, batch_size=40, d_input=140, d_model=352, d_state=4, dropout=0.2, T=50, data_path='/content/shd', ckpt_path='/content/work/exp/pmsn_mc_T50_fill_3ep', pretrain=None, device='cuda:0', seed=1111, log_interval=300, dataset='SHD')
+2026-11-16 20:31:59 - INFO - SHDNet_ours(
+  (hidden1): Sequential(
+    (0): Linear(in_features=140, out_features=352, bias=True)
+    (1): BatchNorm1d(352, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): PMSN_neuron(
+      (kernel): PMSN_kernel()
+    )
+  )
+  (hidden2): Sequential(
+    (0): Linear(in_features=352, out_features=352, bias=True)
+    (1): BatchNorm1d(352, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): PMSN_neuron(
+      (kernel): PMSN_kernel()
+    )
+  )
+  (fc): Sequential(
+    (0): Linear(in_features=352, out_features=20, bias=True)
+  )
+  (drop0): DropoutNd()
+  (drop1): DropoutNd()
+  (drop2): DropoutNd()
+)
+2026-11-16 20:31:59 - INFO - Parameter number: {'Total': 200660, 'Trainable': 200660}
+2026-11-16 20:33:06 - INFO - Epoch 0: train acc 0.65093, train acc with spike 0.87285, test acc 0.85159, best acc 0.85159 
+2026-11-16 20:34:14 - INFO - Epoch 1: train acc 0.87016, train acc with spike 0.94409, test acc 0.93110, best acc 0.93110 
+2026-11-16 20:35:25 - INFO - Epoch 2: train acc 0.92447, train acc with spike 0.97597, test acc 0.91210, best acc 0.93110 
+2026-11-16 20:35:59 - INFO - Finish training: the final training accuracy is 0.93146151304245 and the best validation accuray is 0.9310954213142395 in epoch 1. 
+ The relate checkpoint path: /content/work/exp/pmsn_mc_T50_fill_3ep/lr0.01_nlr0.001_wd0_drop_0.2_d352_s4_seed1111

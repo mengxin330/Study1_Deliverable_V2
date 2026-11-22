@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# Training artifacts that are not needed for measurement
+# (best.pth + final_delays.npz are enough; last.pth is the final epoch)
+checkpoints/*/last.pth
+
+# OS
+.DS_Store
+Thumbs.db

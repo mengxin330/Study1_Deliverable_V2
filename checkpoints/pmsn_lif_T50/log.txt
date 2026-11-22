@@ -1,0 +1,32 @@
+2026-11-16 20:37:38 - INFO - saving to:/content/work/exp/pmsn_lif_T50_fill_5ep/lr0.01_nlr0.001_wd0_drop_0.2_d352_s1_seed1111
+2026-11-16 20:37:38 - INFO - args:Namespace(lr=0.01, neuron_lr=0.001, weight_decay=0, epochs=5, step_lr=False, batch_size=40, d_input=140, d_model=352, d_state=1, dropout=0.2, T=50, data_path='/content/shd', ckpt_path='/content/work/exp/pmsn_lif_T50_fill_5ep', pretrain=None, device='cuda:0', seed=1111, log_interval=300, dataset='SHD')
+2026-11-16 20:37:38 - INFO - SHDNet_ours(
+  (hidden1): Sequential(
+    (0): Linear(in_features=140, out_features=352, bias=True)
+    (1): BatchNorm1d(352, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): PMSN_neuron(
+      (kernel): PMSN_kernel()
+    )
+  )
+  (hidden2): Sequential(
+    (0): Linear(in_features=352, out_features=352, bias=True)
+    (1): BatchNorm1d(352, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (2): PMSN_neuron(
+      (kernel): PMSN_kernel()
+    )
+  )
+  (fc): Sequential(
+    (0): Linear(in_features=352, out_features=20, bias=True)
+  )
+  (drop0): DropoutNd()
+  (drop1): DropoutNd()
+  (drop2): DropoutNd()
+)
+2026-11-16 20:37:38 - INFO - Parameter number: {'Total': 187988, 'Trainable': 187988}
+2026-11-16 20:38:46 - INFO - Epoch 0: train acc 0.59331, train acc with spike 0.83828, test acc 0.79019, best acc 0.79019 
+2026-11-16 20:39:54 - INFO - Epoch 1: train acc 0.80530, train acc with spike 0.90020, test acc 0.85998, best acc 0.85998 
+2026-11-16 20:41:02 - INFO - Epoch 2: train acc 0.86157, train acc with spike 0.92312, test acc 0.86484, best acc 0.86484 
+2026-11-16 20:42:12 - INFO - Epoch 3: train acc 0.90204, train acc with spike 0.96886, test acc 0.88339, best acc 0.88339 
+2026-11-16 20:43:21 - INFO - Epoch 4: train acc 0.91246, train acc with spike 0.97658, test acc 0.88958, best acc 0.88958 
+2026-11-16 20:43:53 - INFO - Finish training: the final training accuracy is 0.9243502020835876 and the best validation accuray is 0.8895759582519531 in epoch 4. 
+ The relate checkpoint path: /content/work/exp/pmsn_lif_T50_fill_5ep/lr0.01_nlr0.001_wd0_drop_0.2_d352_s1_seed1111
