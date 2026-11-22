@@ -257,17 +257,18 @@ def energy(model, T, sop, fh, mesh, ncores, slots):
     neu = N * T * ds * E_MAC
     state = N * T * ds * 2 * E_ACC
     # buffer access = indexing into the shared spike-history buffer.  It scales with
-    # the number of neurons that OWN a recurrent delay (hidden2 width, 352), never
-    # with the number of delay parameters: per-synapse has n_delay=123904 but the
-    # buffer is still (352, L) in delay_layers_pytorch.py.
+    # the number of neurons that OWN a recurrent delay (hidden2 width, 256), never
+    # with the number of delay parameters: per-synapse stores n_delay=65536 but the
+    # buffer is still (256, L) in delay_layers_pytorch.py.
     n_buffer = a.get("n_buffer", a["n_delay"])
     buffer = n_buffer * T * 2 * E_ACC
 
-    # 两种重量口径：见 README §6.4
-    #   weights resident —— Dampfhoffer 的假设：权重 spatially expanded，一次突触
-    #                       操作只付 E_AC 的算术代价；
-    #   weights in SRAM  —— 每次突触操作另读一次 32-bit 权重，代价 E_ACC。
-    # 后者是**上界**：真实核按行整读并在多次操作间复用，reuse=1 即最坏情形。
+    # Two weight regimes, see README §5.5
+    #   weights resident —— Dampfhoffer's assumption: weights are spatially expanded,
+    #                       so one synaptic op costs only the E_AC arithmetic;
+    #   weights in SRAM  —— every synaptic op additionally reads its 32-bit weight,
+    #                       costing E_ACC. This is an UPPER BOUND: a real core reads
+    #                       whole lines and reuses them, reuse=1 being the worst case.
     w_read = sop * E_ACC
 
     sb_bits = N * ds * 32 + a["n_delay"] * slots
