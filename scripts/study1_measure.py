@@ -92,14 +92,32 @@ ARCH = {
     "mc":    dict(params=200660, neurons=704, d_state=8, n_delay=0),
 }
 
+# Hidden width per model: the delay network uses per-synapse delays, which cost
+# h^2 parameters, so it is 256 wide to stay parameter-matched with PMSN's 352.
+MODEL_WIDTH = {"delay": 256, "lif": 352, "mc": 352}
+
+# Fanout per layer, i.e. how many MACs one spike in that layer triggers.
+#   delay  h1: 256 -> 256 (dense hidden1->hidden2)
+#          h2: 20 (out) + 256 (recurrent) = 276
+#   PMSN   h1: 352 -> 352
+#          h2: 20 (fc), no recurrent term
+FANOUT = {
+    "delay": dict(input=256, hidden1=256, hidden2=276),
+    "lif":   dict(input=352, hidden1=352, hidden2=20),
+    "mc":    dict(input=352, hidden1=352, hidden2=20),
+}
+
 # test accuracy on the full 2,264-sample SHD test split (from each final_test.json)
 ACC = {("delay", 50): 84.54, ("delay", 100): 84.30, ("delay", 140): 83.81,
        ("lif", 50): 88.96, ("lif", 100): 86.40, ("lif", 140): 87.10,
        ("mc", 50): 91.21, ("mc", 100): 88.30, ("mc", 140): 88.96}
 
-# Buffer depth for the h=256 delay model: ceil(max_d) + 2, read off
-# final_delays.npz of each checkpoint (max_d 35.1 / 41.6 / 37.2).
-SLOTS = {50: 38, 100: 44, 140: 40}
+# Ring-buffer depth L, from the canonical _build_mask in delay_layers_pytorch.py:
+#     s = 1.0 + sigma ;  L = ceil(1 + max_d + s) + 1
+# with sigma = 10.0 and max_d = 35.09 / 41.59 / 37.18 (from each final_delays.npz).
+# This is the sliding-window length the kernel actually needs, and it is 11 slots
+# deeper than ceil(max_d) + 2 because the triangular kernel has half-width 1+sigma.
+SLOTS = {50: 49, 100: 55, 140: 51}
 
 
 def load_test():
@@ -134,21 +152,31 @@ def make_hop(nc, mn=None):
 
 
 def build_tabs():
+    """{mesh: (hop_matrix, {model: (placement, fanout_table)})}.
+
+    The delay network is 256 wide, the two PMSN variants are 352 wide, so the
+    sequential placement -- core(i) = floor(i * n_cores / n_total) -- maps them
+    to different cores.  Building one table for all three (as an earlier version
+    did with a hardcoded 352) silently mis-places the delay model.
+    """
     tabs = {}
     for cn, nc, mn in MESHES:
         hop = make_hop(nc, mn)
-        pl = Placement(layers_for(hidden=352, out=20), n_cores=nc)
-        tbl = {}
-        for src, dss in (("hidden1", ["hidden2"]), ("hidden2", ["out", "hidden2"])):
-            for dst in dss:
-                d = [0] * nc
-                L = pl.by_name(src)
-                for k in range(L.width):
-                    sc = pl.core_of(L.lo + k)
-                    tg = fanout_targets(pl, src, [dst], sc)
-                    d[sc] = sum(hop[sc][x] for x in tg)
-                tbl[(src, dst)] = d
-        tabs[cn] = (pl, tbl)
+        per_model = {}
+        for model, hidden in MODEL_WIDTH.items():
+            pl = Placement(layers_for(hidden=hidden, out=20), n_cores=nc)
+            tbl = {}
+            for src, dss in (("hidden1", ["hidden2"]), ("hidden2", ["out", "hidden2"])):
+                for dst in dss:
+                    d = [0] * nc
+                    L = pl.by_name(src)
+                    for k in range(L.width):
+                        sc = pl.core_of(L.lo + k)
+                        tg = fanout_targets(pl, src, [dst], sc)
+                        d[sc] = sum(hop[sc][x] for x in tg)
+                    tbl[(src, dst)] = d
+            per_model[model] = (pl, tbl)
+        tabs[cn] = (hop, per_model)
     return tabs
 
 
@@ -177,14 +205,13 @@ def measure_delay(T, times, units, tabs):
     with torch.no_grad():
         for i in range(N_TEST):
             x = bin_one(times[i], units[i], ts_ms, T)
-            # input -> hidden1 (140 channels -> 352 neurons): this layer is before
-            # the first spike_registrator, so nothing above counts it.  Every input
-            # event triggers 352 MACs, same spike-driven convention as the layers
-            # below (sop += spikes * fanout).
-            sop += int(round(float(x.sum()))) * 352
+            # input -> hidden1 (140 pooled channels -> 256 neurons): this layer sits
+            # before the first spike_registrator, so no hook above counts it.  Every
+            # input event triggers 256 MACs, same spike-driven convention as below.
+            sop += int(round(float(x.sum()))) * FANOUT["delay"]["input"]
             dm.model(torch.from_numpy(x).unsqueeze(1).float())
             rows = {}
-            for mi, key, fan in ((3, "hidden1", 352), (8, "hidden2", 372)):
+            for mi, key in ((3, "hidden1"), (8, "hidden2")):
                 s = mods[f"layers.{mi}"].spikes
                 if s is None:
                     continue
@@ -193,13 +220,14 @@ def measure_delay(T, times, units, tabs):
                     s = s[:, 0, :]
                 cnt = int((s > 0.5).sum())
                 spk += cnt
-                sop += cnt * fan
+                sop += cnt * FANOUT["delay"][key]
                 for t in range(T):
                     idx = np.nonzero(s[t] > 0.5)[0].tolist()
                     if idx:
                         rows.setdefault(t, {})[key] = idx
             for cn, _, _ in MESHES:
-                pl, tbl = tabs[cn]
+                _, per_model = tabs[cn]
+                pl, tbl = per_model["delay"]
                 fh[cn].append(hops_of(rows, pl, tbl))
     return sop / N_TEST, spk / N_TEST, {k: np.mean(v) for k, v in fh.items()}
 
@@ -225,22 +253,23 @@ def measure_pmsn(which, T, times, units, tabs):
         for i in range(N_TEST):
             captured.clear()
             x = bin_one(times[i], units[i], ts_ms, T)
-            # input -> hidden1 (140 -> 352): same correction as measure_delay().
-            sop += int(round(float(x.sum()))) * 352
+            # input -> hidden1 (140 -> 352 for PMSN): same correction as measure_delay().
+            sop += int(round(float(x.sum()))) * FANOUT[which]["input"]
             net(torch.from_numpy(x).unsqueeze(0).permute(0, 2, 1))
             rows = {}
             for k, v in captured.items():
                 s = v.reshape(T, 1, -1)
                 cnt = int((s > 0.5).sum())
                 spk += cnt
-                sop += cnt * (352 if "hidden1" in k else 20)
                 key = "hidden1" if "hidden1" in k else "hidden2"
+                sop += cnt * FANOUT[which][key]
                 for t in range(T):
                     idx = torch.nonzero(s[t, 0, :] > 0.5, as_tuple=False).flatten().tolist()
                     if idx:
                         rows.setdefault(t, {})[key] = idx
             for cn, _, _ in MESHES:
-                pl, tbl = tabs[cn]
+                _, per_model = tabs[cn]
+                pl, tbl = per_model[which]
                 fh[cn].append(hops_of(rows, pl, tbl))
     for h in handles:
         h.remove()
@@ -271,8 +300,16 @@ def energy(model, T, sop, fh, mesh, ncores, slots):
     #                       whole lines and reuses them, reuse=1 being the worst case.
     w_read = sop * E_ACC
 
-    sb_bits = N * ds * 32 + a["n_delay"] * slots
-    w_bits = a["params"] * 32
+    # Bit accounting (option A: the delay values count as "delay storage").
+    #
+    #   delays themselves    n_delay * 32        one 32-bit value per connection
+    #   spike window         n_buffer * (L-1)    one bit per neuron per slot
+    #   neuron state         N * ds * 32
+    #
+    # The delay values are also present in ARCH["params"], so the *weight* bits
+    # must exclude them or the same 2.1 Mbit would be charged twice.
+    sb_bits = N * ds * 32 + a["n_delay"] * 32 + n_buffer * max(slots - 1, 0)
+    w_bits = (a["params"] - a["n_delay"]) * 32
     leak_sb = sb_bits * P_LEAK * t_inf * 1e12
     leak_w = w_bits * P_LEAK * t_inf * 1e12
     comm = fh * E_HOP

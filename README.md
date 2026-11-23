@@ -1,4 +1,4 @@
-# Study 1 — How large is the energy share of temporal state in brain-inspired SNNs?
+﻿# Study 1 — How large is the energy share of temporal state in brain-inspired SNNs?
 
 **[English](README.md) | [中文](README.zh.md)**
 
@@ -37,10 +37,12 @@ White-paper wording:
 
 **Why these three**: they match the white paper's "three small SNNs on SHD" — a plain LIF baseline, a delay-trained network, and a multi-compartment network. PMSN with $d_{state}=1$ is a first-order IIR, i.e. equivalent to LIF, so it shares one codebase with the $d_{state}=8$ variant; the only architectural difference is the number of compartments.
 
-**Why the delay network is 256 wide**: a per-synapse delay costs $(h)^2$ parameters, so at
-$h=352$ the delay network would carry 430,164 parameters against PMSN's 188–201 K. At
-$h=256$ it is 239,124 — the same order as the two PMSN variants — while still reaching
-83.8–84.5 % test accuracy. §10 records the accuracy cost of that choice.
+**Why the delay network is 256 wide**: a per-synapse delay table costs $h^2$ parameters, so
+the hidden width is not a free choice. At $h=352$ — the width both PMSN variants use — the
+delay network would carry **430,164** parameters against PMSN's 188–201 K, i.e. **more than
+twice as many**, and the three models would no longer be comparable. At $h=256$ it is
+**239,124** — the same order as the two PMSN variants — while still reaching 83.8–84.5 %
+test accuracy. §10 records the accuracy cost of that choice.
 
 **Why PMSN uses the last epoch rather than best**: MC peaks at epoch 1 and drops ~1 point by epoch 2. Taking best would raise it by 1.5–2 points and widen the gap to LIF to 3–4 points, breaking matched accuracy.
 
@@ -52,9 +54,10 @@ so a spike from neuron `j` reaches target `i` at `t + 1 + d_ij`
 presynaptic neuron, shape `(N,)`) and `common_recdel` (one scalar per layer) are the other
 two variants; **we use `synaptic_recdel`**.
 
-**Why it matters for the energy count**: a per-synapse table stores $h^2$ delays instead of
-$h$, which multiplies the delay-buffer term by 256 (§5.3). That is the single largest
-difference between this accounting and a per-neuron one.
+**Why it matters for the energy count**: a per-synapse table stores $h^2 = 65{,}536$ delay
+values instead of $h = 256$ — **2.1 Mbit of delay storage** (§5.3). That is the single largest
+difference between this accounting and a per-neuron one, and it is why the delay model's
+temporal-state share is 79 % here rather than the 44 % a per-neuron design gives.
 
 ### Do the feedforward layers carry delays?
 
@@ -379,63 +382,75 @@ $$E_{LIF+inst} = \underbrace{N_{syn} N_{spikes/syn}(\cdots)}_{\text{event-driven
 
 | T | Model | spikes | SOP | neuron ops | state acc. | buffer acc. |
 |---|---|---|---|---|---|---|
-| **50** | delay | 2,750 | 3,902,063 | 26,600 | 53,200 | 25,600 |
+| **50** | delay | 2,750 | 2,848,026 | 26,600 | 53,200 | 25,600 |
 | **50** | LIF | 8,688 | 4,286,554 | 35,200 | 70,400 | 0 |
 | **50** | MC | 9,565 | 4,430,112 | 281,600 | 563,200 | 0 |
-| **100** | delay | 5,301 | 4,831,205 | 53,200 | 106,400 | 51,200 |
+| **100** | delay | 5,301 | 3,532,306 | 53,200 | 106,400 | 51,200 |
 | **100** | LIF | 13,930 | 4,705,348 | 70,400 | 140,800 | 0 |
 | **100** | MC | 15,672 | 5,239,870 | 563,200 | 1,126,400 | 0 |
-| **140** | delay | 6,696 | 5,342,857 | 74,480 | 148,960 | 71,680 |
+| **140** | delay | 6,696 | 3,910,030 | 74,480 | 148,960 | 71,680 |
 | **140** | LIF | 19,523 | 5,486,040 | 98,560 | 197,120 | 0 |
 | **140** | MC | 21,026 | 5,833,939 | 788,480 | 1,576,960 | 0 |
 
-**SOP includes the input → hidden1 layer, which an earlier version omitted**: `SOP = (input events + hidden1 spikes) × fanout_h1 + hidden2 spikes × fanout_h2`. Input events average ≈ 8,230 per inference and are identical for all three models, since all three share the same 140→256 (delay) / 140→352 (PMSN) input layer.
+**SOP includes the input → hidden1 layer, which an earlier version omitted**: `SOP = (input events + hidden1 spikes) × fanout_h1 + hidden2 spikes × fanout_h2`. Input events average ≈ 8,230 per inference and are identical for all three models, since all three share the same 140-channel pooled input.
 
-**The delay network's fanouts are 256 (hidden1) and 20 (hidden2→out)**; PMSN's are 352 and 20.
+**The delay network's fanouts are 256 (hidden1) and 276 (hidden2 → 20 out + 256 recurrent)**; PMSN's are 352 and 20.
 
 **neuron ops = $N_{neur} \times T \times d_{state}$; state accesses = neuron ops × 2 (read + write); buffer accesses = $256 \times T \times 2$.**
 
 **MC's $d_{state}$ is 8 real values, not 4** — the PMSN state is complex, so each of the four compartments contributes a real and an imaginary part.
 
-**The delay network's spike counts are 20–36 % of LIF's** (2,750 vs 8,688 at T=50), because per-synapse delays suppress redundant firing more than a single per-neuron delay can.
+**The delay network's spike counts are 26–34 % of LIF's** (2,750 vs 8,688 at T=50), and because its fanout is also smaller (256 vs 352), **its SOP comes out 30–35 % below LIF's** — the opposite of the per-neuron design, where the wider fanout of 372 cancelled the sparsity advantage.
 
 ### 5.3 Storage bits
 
-| Model | weight bits | state bits | buffer bits (T=100) |
-|---|---|---|---|
-| delay | **7,651,968** | **17,024** | **2,883,584** |
-| LIF | 6,015,616 | 22,528 | 0 |
-| MC | 6,421,120 | **180,224** | 0 |
+The delay network stores three different things, and they must not be conflated:
 
-**MC's state bits are 704 × 8 × 32 (8 real values per neuron).**
+| Model | weight bits | neuron-state bits | **delay values** | **spike window** | temporal total |
+|---|---|---|---|---|---|
+| delay | **5,554,816** | **17,024** | **2,097,152** | **13,824** | **2,128,000** |
+| LIF | 6,015,616 | 22,528 | 0 | 0 | 22,528 |
+| MC | 6,421,120 | **180,224** | 0 | 0 | 180,224 |
 
-**The 2,883,584 buffer bits are a per-synapse table: $256^2 = 65{,}536$ delays × 44 slots,
-one bit per slot.** The slot count is `ceil(max_d) + 2` read off each checkpoint's
-`final_delays.npz`; T=50 uses 38 and T=140 uses 40.
+**The three pieces, from the code:**
 
-**This is the number that makes the delay model expensive.** A per-neuron table would store
-only 256 delays — 256 × 44 = 11,264 bits — so the per-synapse choice multiplies the delay
-storage by **256×**. Almost all of the delay model's leakage (§5.5) comes from this term.
+| Piece | Size | Where it comes from |
+|---|---|---|
+| **delay values** | $256^2 = 65{,}536$ × 32 bit = **2,097,152** | `recurrent_delays`, shape `(256,256)` — one value per connection |
+| **spike window** | $256 \times (L-1)$ × 1 bit = **13,824** | `y_window = zeros(B, N, L-1)` in `SynapticTorchScans.multi_step_forward_v2` — one bit per hidden2 neuron per slot |
+| **neuron state** | $532 \times 32$ = **17,024** | membrane potentials |
 
-**Weights account for 73 % of the delay model's bits and 97–99 % for the two PMSN models**, so
-weight leakage dominates the *total* leakage of the PMSN variants while buffer leakage
-dominates the delay model's.
+**The window depth is $L = \lceil 1 + \max d + (1+\sigma) \rceil + 1$**, from `_build_mask`:
+49 / 55 / 51 for T = 50 / 100 / 140 with $\sigma = 10$. **This is 11 slots deeper than
+$\lceil \max d \rceil + 2$**, because the triangular kernel has half-width $1+\sigma$.
+
+**The weight column excludes the delay values** (5,554,816 = (239,124 − 65,536) × 32), since
+the 2.1 Mbit would otherwise be charged twice — once as parameters, once as delay storage.
+
+**This is where per-synapse differs from per-neuron, and how**: a per-neuron design stores
+$h = 256$ delays (8,192 bit) and its window is identical. **The per-synapse table costs 256×
+more *delay values*, not 256× more *buffer*** — the runtime window is the same size in both
+designs, because the recurrence is over neurons either way.
+
+**Weights are 73 % of the delay model's bits and 96–97 % of the two PMSN models'**, so
+weight leakage dominates the *total* leakage of every model; the delay table is what makes
+the delay model's *temporal* share large.
 
 ### 5.4 Communication hops
 
 | T | Model | 2×2 | 4×4 | 8×8 |
 |---|---|---|---|---|
-| 50 | delay | 9,777 | 64,203 | 445,829 |
+| 50 | delay | 8,832 | 60,962 | 441,018 |
 | | LIF | 28,587 | 198,392 | 1,436,650 |
 | | MC | 31,381 | 220,566 | 1,591,048 |
-| 100 | delay | 18,760 | 128,184 | 891,442 |
+| 100 | delay | 17,374 | 119,507 | 882,011 |
 | | LIF | 45,118 | 308,479 | 2,213,959 |
 | | MC | 50,835 | 357,068 | 2,576,434 |
-| 140 | delay | 23,921 | 157,664 | 1,091,071 |
+| 140 | delay | 21,762 | 148,861 | 1,086,171 |
 | | LIF | 63,203 | 434,092 | 3,125,954 |
 | | MC | 68,429 | 474,574 | 3,409,407 |
 
-**delay's hop count is only 31–42 % of LIF's — sparser spikes buy less communication.** The
+**delay's hop count is only 31–40 % of LIF's — sparser spikes buy less communication.** The
 delay network fires 2,750 / 5,301 / 6,696 spikes against LIF's 8,688 / 13,930 / 19,523, and
 hop count tracks spike count almost linearly once the placement is fixed.
 
@@ -443,31 +458,31 @@ hop count tracks spike count almost linearly once the placement is fixed.
 
 | T | Mesh | Model | synaptic | state | delay | leakage | comm | **w_read** | **total (resident)** | **total (SRAM)** | weights leak |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| **50** | 2×2 | delay | 3.634 | 0.532 | 0.256 | 14.653 | 0.034 | 39.021 | **19.109** | **58.130** | 44.717 |
+| **50** | 2×2 | delay | 2.686 | 0.532 | 0.256 | 9.093 | 0.031 | 28.480 | **12.597** | **41.078** | 23.752 |
 | | | LIF | 4.020 | 0.704 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** | 38.672 |
 | | | MC | 5.282 | 5.632 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** | 45.004 |
-| **50** | 4×4 | delay | 3.634 | 0.532 | 0.256 | 3.663 | 0.225 | 39.021 | **8.310** | **47.331** | 11.179 |
+| **50** | 4×4 | delay | 2.686 | 0.532 | 0.256 | 2.273 | 0.213 | 28.480 | **5.960** | **34.440** | 5.938 |
 | | | LIF | 4.020 | 0.704 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** | 9.668 |
 | | | MC | 5.282 | 5.632 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** | 11.251 |
-| **50** | 8×8 | delay | 3.634 | 0.532 | 0.256 | 0.916 | 1.560 | 39.021 | **6.898** | **45.919** | 2.795 |
+| **50** | 8×8 | delay | 2.686 | 0.532 | 0.256 | 0.568 | 1.544 | 28.480 | **5.585** | **34.066** | 1.485 |
 | | | LIF | 4.020 | 0.704 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** | 2.417 |
 | | | MC | 5.282 | 5.632 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** | 2.813 |
-| **100** | 2×2 | delay | 4.593 | 1.064 | 0.512 | 21.075 | 0.066 | 48.312 | **27.309** | **75.621** | 55.596 |
+| **100** | 2×2 | delay | 3.424 | 1.064 | 0.512 | 11.350 | 0.061 | 35.323 | **16.410** | **51.733** | 29.626 |
 | | | LIF | 4.559 | 1.408 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** | 42.734 |
 | | | MC | 7.307 | 11.264 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** | 55.428 |
-| **100** | 4×4 | delay | 4.593 | 1.064 | 0.512 | 5.269 | 0.449 | 48.312 | **11.886** | **60.198** | 13.899 |
+| **100** | 4×4 | delay | 3.424 | 1.064 | 0.512 | 2.837 | 0.418 | 35.323 | **8.255** | **43.579** | 7.407 |
 | | | LIF | 4.559 | 1.408 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** | 10.684 |
 | | | MC | 7.307 | 11.264 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** | 13.857 |
-| **100** | 8×8 | delay | 4.593 | 1.064 | 0.512 | 1.317 | 3.120 | 48.312 | **10.606** | **58.918** | 3.475 |
+| **100** | 8×8 | delay | 3.424 | 1.064 | 0.512 | 0.709 | 3.087 | 35.323 | **8.796** | **44.119** | 1.852 |
 | | | LIF | 4.559 | 1.408 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** | 2.671 |
 | | | MC | 7.307 | 11.264 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** | 3.464 |
-| **140** | 2×2 | delay | 5.151 | 1.490 | 0.717 | 21.262 | 0.084 | 53.429 | **28.703** | **82.131** | 61.662 |
+| **140** | 2×2 | delay | 3.862 | 1.490 | 0.717 | 12.606 | 0.076 | 39.100 | **18.751** | **57.851** | 32.923 |
 | | | LIF | 5.391 | 1.971 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** | 49.972 |
 | | | MC | 8.878 | 15.770 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** | 63.253 |
-| **140** | 4×4 | delay | 5.151 | 1.490 | 0.717 | 5.315 | 0.552 | 53.429 | **13.225** | **66.653** | 15.415 |
+| **140** | 4×4 | delay | 3.862 | 1.490 | 0.717 | 3.152 | 0.521 | 39.100 | **9.741** | **48.841** | 8.231 |
 | | | LIF | 5.391 | 1.971 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** | 12.493 |
 | | | MC | 8.878 | 15.770 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** | 15.813 |
-| **140** | 8×8 | delay | 5.151 | 1.490 | 0.717 | 1.329 | 3.819 | 53.429 | **12.505** | **65.934** | 3.854 |
+| **140** | 8×8 | delay | 3.862 | 1.490 | 0.717 | 0.788 | 3.802 | 39.100 | **10.658** | **49.758** | 2.058 |
 | | | LIF | 5.391 | 1.971 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** | 3.123 |
 | | | MC | 8.878 | 15.770 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** | 3.953 |
 
@@ -485,19 +500,19 @@ hop count tracks spike count almost linearly once the placement is fixed.
 
 | T | Mesh | delay | LIF | MC | (a) | delay (SRAM) | LIF (SRAM) | MC (SRAM) | (a) SRAM |
 |---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 80.8% | 17.1% | 56.1% | ✅ | **26.6%** | **1.8%** | **12.2%** | ✅ |
-| 50 | 4×4 | 53.6% | 13.6% | 49.6% | ✅ | **9.4%** | **1.5%** | **10.6%** | ✅ |
-| 50 | 8×8 | 24.7% | 7.3% | 34.5% | ✅ | **3.7%** | **1.4%** | **9.4%** | ❌ |
-| 100 | 2×2 | 82.9% | 25.0% | 63.1% | ✅ | **30.0%** | **2.9%** | **17.6%** | ✅ |
-| 100 | 4×4 | 57.6% | 20.4% | 57.7% | ✅ | **11.4%** | **2.7%** | **16.0%** | ✅ |
-| 100 | 8×8 | 27.3% | 10.3% | 41.0% | ✅ | **4.9%** | **2.3%** | **14.2%** | ✅ |
-| 140 | 2×2 | 81.8% | 27.8% | 65.8% | ✅ | **28.6%** | **3.4%** | **20.6%** | ✅ |
-| 140 | 4×4 | 56.9% | 22.6% | 60.6% | ✅ | **11.3%** | **3.2%** | **19.1%** | ✅ |
-| 140 | 8×8 | 28.3% | 10.8% | 43.3% | ✅ | **5.4%** | **2.7%** | **16.7%** | ✅ |
+| 50 | 2×2 | 78.4% | 17.1% | 56.1% | ✅ | **24.1%** | **1.8%** | **12.2%** | ✅ |
+| 50 | 4×4 | 51.4% | 13.6% | 49.6% | ✅ | **8.9%** | **1.5%** | **10.6%** | ✅ |
+| 50 | 8×8 | 24.3% | 7.3% | 34.5% | ✅ | **4.0%** | **1.4%** | **9.4%** | ❌ |
+| 100 | 2×2 | 78.8% | 25.0% | 63.1% | ✅ | **25.0%** | **2.9%** | **17.6%** | ✅ |
+| 100 | 4×4 | 53.5% | 20.4% | 57.7% | ✅ | **10.1%** | **2.7%** | **16.0%** | ✅ |
+| 100 | 8×8 | 26.0% | 10.3% | 41.0% | ✅ | **5.2%** | **2.3%** | **14.2%** | ✅ |
+| 140 | 2×2 | 79.0% | 27.8% | 65.8% | ✅ | **25.6%** | **3.4%** | **20.6%** | ✅ |
+| 140 | 4×4 | 55.0% | 22.6% | 60.6% | ✅ | **11.0%** | **3.2%** | **19.1%** | ✅ |
+| 140 | 8×8 | 28.1% | 10.8% | 43.3% | ✅ | **6.0%** | **2.7%** | **16.7%** | ✅ |
 
 **Left half is the weights-resident regime; right half charges one 10 pJ weight read per synaptic operation (§5.5).**
 
-**Without weight reads, delay ranges 24.7–82.9 %, MC 34.5–65.8 %, and plain LIF 7.3–27.8 %.** The delay
+**Without weight reads, delay ranges 24.3–79.0 %, MC 34.5–65.8 %, and plain LIF 7.3–27.8 %.** The delay
 network's share is *high* precisely because the per-synapse delay table is huge (§5.3): at 2×2 its
 temporal state is 80.8 % of its own energy.
 
@@ -513,110 +528,129 @@ where it reaches 9.4 % — 0.6 point short.** Plain LIF never exceeds 3.4 % in S
 
 | T | Mesh | spike order | SOP order | energy order | spike≠E | SOP≠E | energy order (SRAM) | SOP≠E (SRAM) |
 |---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | DL<LIF<MC | DL<LIF<MC | LIF<MC<DL | ✅ | ✅ | **LIF<MC<DL** | ✅ |
+| 50 | 2×2 | DL<LIF<MC | DL<LIF<MC | LIF<MC<DL | ✅ | ✅ | **DL<LIF<MC** | ❌ |
 | 50 | 4×4 | DL<LIF<MC | DL<LIF<MC | LIF<DL<MC | ✅ | ✅ | **DL<LIF<MC** | ❌ |
 | 50 | 8×8 | DL<LIF<MC | DL<LIF<MC | DL<LIF<MC | ❌ | ❌ | **DL<LIF<MC** | ❌ |
-| 100 | 2×2 | DL<LIF<MC | LIF<DL<MC | LIF<MC<DL | ✅ | ✅ | **LIF<MC<DL** | ✅ |
-| 100 | 4×4 | DL<LIF<MC | LIF<DL<MC | LIF<DL<MC | ✅ | ❌ | **LIF<DL<MC** | ❌ |
-| 100 | 8×8 | DL<LIF<MC | LIF<DL<MC | DL<LIF<MC | ❌ | ✅ | **DL<LIF<MC** | ✅ |
-| 140 | 2×2 | DL<LIF<MC | DL<LIF<MC | LIF<MC<DL | ✅ | ✅ | **LIF<DL<MC** | ✅ |
-| 140 | 4×4 | DL<LIF<MC | DL<LIF<MC | LIF<DL<MC | ✅ | ✅ | **LIF<DL<MC** | ✅ |
+| 100 | 2×2 | DL<LIF<MC | DL<LIF<MC | LIF<DL<MC | ✅ | ✅ | **DL<LIF<MC** | ❌ |
+| 100 | 4×4 | DL<LIF<MC | DL<LIF<MC | LIF<DL<MC | ✅ | ✅ | **DL<LIF<MC** | ❌ |
+| 100 | 8×8 | DL<LIF<MC | DL<LIF<MC | DL<LIF<MC | ❌ | ❌ | **DL<LIF<MC** | ❌ |
+| 140 | 2×2 | DL<LIF<MC | DL<LIF<MC | LIF<DL<MC | ✅ | ✅ | **DL<LIF<MC** | ❌ |
+| 140 | 4×4 | DL<LIF<MC | DL<LIF<MC | LIF<DL<MC | ✅ | ✅ | **DL<LIF<MC** | ❌ |
 | 140 | 8×8 | DL<LIF<MC | DL<LIF<MC | DL<LIF<MC | ❌ | ❌ | **DL<LIF<MC** | ❌ |
 
-**At least one flip: 7/9 resident, 6/9 in SRAM.** (Resident: 6/9 spike, 6/9 SOP. In SRAM:
-5/9 spike, 5/9 SOP.)
+**At least one flip: 6/9 resident, 0/9 in SRAM.** (Resident: 6/9 spike, 6/9 SOP.)
 
-**The two failures are T=50 and T=140 at 8×8**, where the delay network is simultaneously the
-sparsest *and* the cheapest — so spike count, SOP and the full model all agree, and criterion (b)
-has nothing to catch. T=100 at 8×8 still flips because its σ=10 model fires more (5,301 spikes
-against 2,750), which pushes its SOP above LIF's without making it more expensive.
+**Delay's SOP is the lowest of the three models in every configuration** (`DL<LIF<MC` at all
+three resolutions and all three meshes). This is what the per-synapse design produces: its
+spikes are 26–34 % of LIF's *and* its fanout is 256 instead of 352, so the two effects
+compound rather than cancel.
 
-**Delay's SOP order is not the same at all three resolutions.** At T=50 and T=140 it is
-`DL<LIF<MC` (delays suppress firing enough to keep SOP lowest); at T=100 it is `LIF<DL<MC`. That
-one difference is what keeps T=100's 4×4 and 8×8 verdicts distinct from the other two.
+**That single fact drives the whole criterion-(b) result:**
 
-**Weight reads flip the *energy* ranking in 2 of 9 configurations:**
+- **Resident regime** — the delay model's energy is dominated by its 2.1 Mbit delay table, so
+  it costs the most at 2×2 and 4×4 even though it emits the fewest spikes. **SOP ranks it
+  cheapest, energy ranks it dearest → flip.** At 8×8 the delay table's leakage collapses with
+  $t_{inf}$ and the model becomes genuinely cheapest, so the two rankings finally agree —
+  **that is the 3/9 failure** (T=50, 100, 140 at 8×8).
+- **SRAM regime** — $w\_read = \text{SOP} \times 10$ pJ is 68–84 % of the total, so the energy
+  ranking *is* the SOP ranking by construction. **0/9 is arithmetic, not a modelling error.**
 
-| Config | energy order (resident) | energy order (in SRAM) |
-|---|---|---|
-| T50-4×4 | LIF < DL < MC | **DL < LIF < MC** |
-| T140-2×2 | LIF < MC < DL | **LIF < DL < MC** |
+**The shift from per-neuron to per-synapse is what moved this**: with per-neuron delays the
+fanout was 372, which cancelled the sparsity advantage and put the delay model's SOP in the
+middle — that is why an earlier version reported 7/9 and 6/9. With $h=256$ and a fanout of
+276 the delay model is simply the sparsest *and* the cheapest on SOP, and criterion (b) has
+less to catch.
 
-**Mechanism.** The weight-read term is proportional to SOP, and the delay model's SOP is close to plain LIF's once the shared input layer is counted, while its communication advantage disappears with mesh size. Charging every synaptic operation for a weight fetch therefore reorders the models wherever SOP and communication disagree.
-
-**Note that weight reads make criterion (b) *weaker*, not stronger**: charging every operation for a weight fetch raises SOP's share of the total, so the SOP-only ranking moves *closer* to the full model. This is a limitation of the accounting, not of the models.
+**Weight reads therefore make criterion (b) *weaker*, not stronger**: charging every
+operation for a weight fetch raises SOP's share of the total until it dominates, so the
+SOP-only ranking converges on the full-model ranking. This is a limitation of the accounting,
+not of the models — and it is the honest result for a hardware design in which weights are
+re-read on every operation.
 
 ### 6.3 Summary
 
 | Criterion | weights resident | weights in SRAM |
 |---|---|---|
 | **(a) ts ≥ 10%** | **9/9** | **8/9** |
-| (b) spike ≠ energy | 6/9 | 5/9 |
-| (b) SOP ≠ energy | 6/9 | 5/9 |
-| **(b) at least one flip** | **7/9** | **6/9** |
-| Ranking affected by the weight term | — | **2/9 configurations** |
+| (b) spike ≠ energy | 6/9 | **0/9** |
+| (b) SOP ≠ energy | 6/9 | **0/9** |
+| **(b) at least one flip** | **6/9** | **0/9** |
+| Energy ranking changed by the weight term | — | **0/9 configurations** |
 
-**Both criteria hold, but (b) is weaker than in a per-neuron design.** With per-neuron delays the
-delay network's SOP sits *above* the two PMSN variants at every resolution, so SOP always
-mis-ranked it and (b) held 9/9. With per-synapse delays the extra accuracy forces more spikes, and
-the SOP ordering varies by resolution — at T=50 and T=140 the delay network becomes both the
-sparsest and the cheapest at 8×8, leaving nothing for (b) to detect.
+**Criterion (a) holds in both regimes** — 9/9 without weight reads and 8/9 with them, the single
+miss being MC at T=50/8×8 where it reaches 9.4 %, 0.6 point short.
+
+**Criterion (b) holds only in the resident regime (6/9).** The three misses are the 8×8 cases,
+where the delay model is genuinely the cheapest model *and* emits the fewest spikes, so SOP,
+spike count and the full model all rank it first.
+
+**In the SRAM regime (b) fails completely, and the reason is structural**: `w_read ∝ SOP`
+supplies 68–84 % of the total, so the energy ranking cannot differ from the SOP ranking. This
+is a property of the accounting, not of the three models — the same thing would happen to any
+set of models under that assumption.
+
+**Contrast with per-neuron**: an earlier per-neuron version reported (b) at 7/9 resident and
+6/9 in SRAM. The difference is not a modelling choice but a consequence of the per-synapse
+design — its fanout drops from 372 to 276, so its SOP falls *below* LIF's instead of sitting
+in the middle. **Criterion (b) is therefore weaker in this version, and the report says so
+rather than picking the favourable accounting.**
 
 ## 7. Analysis
 
-### 7.1 Both simplified estimates rank delay too cheaply
+### 7.1 Both simplified estimates rank delay cheapest, and it is really second
 
 **T=100, 2×2:**
 
 | Estimate | Order | Verdict on delay |
 |---|---|---|
-| **spike count** | delay(5.3k) < LIF(13.9k) < MC(15.7k) | **cheapest** (actually **most expensive**) |
-| **SOP** | LIF(4.71M) < delay(4.83M) < MC(5.24M) | **2nd** (actually **most expensive**) |
-| **full model** | LIF(6.28) < MC(20.30) < **delay(27.31)** | most expensive |
+| **spike count** | delay(5.3k) < LIF(13.9k) < MC(15.7k) | **cheapest** (actually **2nd**) |
+| **SOP** | delay(3.53M) < LIF(4.71M) < MC(5.24M) | **cheapest** (actually **2nd**) |
+| **full model** | LIF(6.28) < **delay(16.41)** < MC(20.30) | **2nd** |
 
-**Both estimates point the same way here, and both are wrong.** Spike count sees the delay
-network's sparsity (5,301 against LIF's 13,930) but not its buffer cost; SOP sees the recurrent
-fanout (256) but not the delay table. The full model puts delay at 27.31 µJ, four times LIF.
+**Both estimates point the same way, and both are wrong about the magnitude** — the full model
+puts the delay network at 16.41 µJ, **2.6× plain LIF**, not the cheapest of the three.
 
-**The miss is the delay table, not the delays.** §5.3: 65,536 delays × 44 slots = 2.88 Mbit,
-whose leakage alone is 21.08 of those 27.31 µJ. Nothing in spike count or SOP knows that table
-exists.
+**The miss is the delay table, not the delays.** §5.3: 65,536 delay values occupy 2.1 Mbit,
+whose leakage alone is **11.35 of those 16.41 µJ** (69 %). Nothing in spike count or SOP knows
+that table exists.
 
 ### 7.2 The multi-compartment cost is visible only in the full model
 
 | T=100, 2×2 | delay | LIF | **MC** |
 |---|---|---|---|
 | spikes | 5,301 | 13,930 | 15,672 |
-| SOP | 4.83M | 4.71M | 5.24M |
+| SOP | 3.53M | 4.71M | 5.24M |
 | **state** | 1.064 | 1.408 | **11.264 (8.0×)** |
-| **leakage** | **21.075** | 0.160 | 1.556 |
-| full model | **27.31** | 6.28 | 20.30 |
+| **leakage** | **11.350** | 0.160 | 1.556 |
+| full model | **16.41** | 6.28 | **20.30** |
 
 **$d_{state}=8$ multiplies both state accesses and bits by 8, but SOP contains no such factor** —
 MC's 8× state cost is invisible to SOP.
 
 **Symmetrically, the delay table is invisible to every simplified estimate.** The two models are
 expensive for completely different reasons: MC because its per-neuron state is 8 real values, the
-delay network because its per-synapse delay table is 65,536 entries. That is worth stating
-plainly — a spike- or SOP-based analysis would rank *both* of them cheap.
+delay network because its per-synapse table holds 65,536 delay values. That is worth stating
+plainly — a spike- or SOP-based analysis ranks **both** of them cheap, and the delay network is
+in fact ranked cheapest of all on SOP while being the second most expensive model.
 
 ### 7.3 At large mesh, communication overtakes state
 
 | T=100, 8×8 | delay | LIF | MC |
 |---|---|---|---|
-| comm | 3.120 | 7.749 | 9.018 |
-| comm share | **29%** | **56%** | **33%** |
+| comm | 3.087 | 7.749 | 9.018 |
+| comm share | **35%** | **56%** | **33%** |
 
-**At 64 cores the delay network is again the cheapest (10.61 vs 13.73 and 27.69).** Its hop count
+**At 64 cores the delay network becomes the cheapest (8.80 vs 13.73 and 27.69).** Its hop count
 is only 40 % of LIF's because it fires 5,301 spikes against 13,930 — the per-synapse delays
 suppress redundant activity.
 
 **But its energy advantage at 8×8 comes from three terms at once**, not from communication alone:
-its buffer leakage drops to 1.32 µJ (from 21.08 at 2×2, because $t_{inf}$ shrinks 16×), its comm
-is 3.12 against LIF's 7.75, and its synaptic term is 4.59 against MC's 7.31.
+its delay-table leakage drops to 0.71 µJ (from 11.35 at 2×2, because $t_{inf}$ shrinks 16×), its
+comm is 3.09 against LIF's 7.75, and its synaptic term is 3.42 against MC's 7.31.
 
-**Note the inversion from 2×2:** there the delay network was the *most* expensive of the three
-(27.31 vs 20.30 vs 6.28); at 8×8 it is the cheapest. The mesh size changes which term dominates,
+**Note the inversion from 2×2:** there the delay network was the *second* most expensive
+(16.41 vs MC's 20.30 and LIF's 6.28); at 8×8 it is the cheapest. The mesh size changes which
+term dominates,
 and the delay model is the one whose cost is most sensitive to that.
 
 ### 7.4 Effect of time-step resolution
@@ -670,7 +704,7 @@ now is the parameter budget, not the delay granularity.
 
 **Effect**: if a MAC actually needs 4 cycles, $t_{inf}$ is 4× larger and $P_{leak} \times t_{inf}$ scales accordingly.
 
-**But Study 1's leakage is only 0.2–3.7% (excluding weights), so criteria (a)(b) are unaffected. Weight leakage (41.99 µJ at T=100, 2×2) is heavily affected, but it is reported separately.**
+**But Study 1's leakage is only 4.3–14 % of the delay model (excluding weights), so criteria (a)(b) are barely affected. Weight leakage (29.63 µJ at T=100, 2×2) is heavily affected, but it is reported separately.**
 
 ### 8.5 Mixed process nodes
 
@@ -685,7 +719,7 @@ now is the parameter budget, not the delay granularity.
 
 **Every synaptic operation is charged one full SRAM access (10 pJ) to fetch its 32-bit weight. A real core reads an entire SRAM line and reuses it across several consecutive synaptic operations.**
 
-**Effect**: with a reuse factor $R$, the term scales as $1/R$. At $R=4$ (a 128-bit line feeding four 32-bit operations) the T=100 delay model's weight term drops from 48.31 µJ to 12.08 µJ, its total from 27.31 to 39.39 µJ, and its temporal-state share from **82.9 % down to 57.5 %** — still the dominant term, but a very different number. The resident case corresponds to $R=\infty$ (82.9 %).
+**Effect**: with a reuse factor $R$, the term scales as $1/R$. At $R=4$ (a 128-bit line feeding four 32-bit operations) the T=100 delay model's weight term drops from 35.32 µJ to 8.83 µJ, its total rises from 16.41 to 25.24 µJ, and its temporal-state share falls from **78.8 % to 51.2 %** — still the dominant term, but a very different number. The resident case corresponds to $R=\infty$ (78.8 %).
 
 **So the "weights in SRAM" column of §5.5 is a worst case, not a prediction.** The two regimes bracket the truth: weight reuse is what decides whether temporal state matters, which is itself an architectural question the white paper's Thrust 3 (memory tiers) is meant to answer.
 
@@ -811,10 +845,12 @@ no per-epoch curve is available for those two resolutions.
 | 7 | FP32 conflicts with the white paper's §7.1 "low-precision" | narrative only (INT32 differs <0.5%) | `PARAMETERS.md` |
 | 8 | $\int P_{idle}dt$ excluded | matches Study 1's five categories; not a defect | §4.2 |
 | 9 | Weight leakage reported separately | a reporting choice, not a defect | §4.3 |
-| 10 | Weight reads assume **no reuse** ($R=1$) | the "in SRAM" column is an upper bound; at $R=4$ delay's share is 57.5 % instead of 82.9 % | §8.6 |
+| 10 | Weight reads assume **no reuse** ($R=1$) | the "in SRAM" column is an upper bound; at $R=4$ delay's share is 51.2 % instead of 78.8 % | §8.6 |
 | 11 | The delay and LIF networks come from **different code bases** (DelRec vs PMSN) | the delay-vs-LIF comparison is **not controlled**; the SOP gap may be architectural, so no causal claim from the §6.2 flips | follow-up Task 4 |
 | **12** | **Per-synapse delays cost ~2 points of accuracy** | delay reaches 84.54 / 84.30 / 83.81 % against per-neuron delays' 86.56 / 87.24 / 87.99 % at $h=352$. The per-synapse table is what makes the network parameter-matched to PMSN, so the choice is deliberate — but it means the three models are **not** accuracy-matched, and the delay network is consistently the weakest | §1 |
-| **13** | **Buffer depth varies with resolution** | `slots = ceil(max_d) + 2` is read per checkpoint: 38 / 44 / 40 for T=50 / 100 / 140. A trained delay distribution is what sets it, so the buffer cost is not constant across resolutions | §5.3 |
+| **13** | **Ring depth varies with resolution** | $L = \lceil 1 + \max d + (1+\sigma) \rceil + 1$ is read per checkpoint: **49 / 55 / 51** for T = 50 / 100 / 140 with $\sigma = 10$. A trained delay distribution sets it, so the buffer cost is not constant across resolutions | §5.3 |
+| **14** | **Criterion (b) is vacuous in the SRAM regime** | $w\_read \propto \text{SOP}$ supplies 68–84 % of the total, so the energy ranking is the SOP ranking by construction and (b) is 0/9. This is a property of the accounting, not of the models; the resident regime is where (b) has content (6/9) | §6.2, §6.3 |
+| **15** | **The delay values are counted as "delay storage"** | 2.1 Mbit is charged to category 3 rather than to the weight column. Counting them as weights instead would move the same 2.1 Mbit into `weights_leak` and drop the delay model's temporal-state share from 78.8 % to about 31 % at T=100/2×2. The choice follows the white paper's wording ("delay storage"), but it is a choice | §5.3 |
 
 ---
 

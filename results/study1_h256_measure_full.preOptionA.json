@@ -1,0 +1,905 @@
+{
+  "_meta": {
+    "generated_by": "scripts/study1_measure.py --save",
+    "n_test_samples": 2264,
+    "dataset": "SHD test split",
+    "units": "energy in microjoules (uJ) per inference",
+    "precision": "FP32 (32-bit floating point)",
+    "note": "weights_leak reported separately, excluded from total",
+    "weight_read_modes": {
+      "resident": "weights spatially expanded; a synaptic operation costs only E_AC (Dampfhoffer 2023, L2372)",
+      "sram": "weights resident in SRAM; every synaptic operation also pays one E_access (10 pJ) to read its 32-bit weight. This is an UPPER bound: weight reuse would divide it.",
+      "fields": "total / ts_share = resident; total_sram / ts_share_sram = weights in SRAM"
+    },
+    "prices": {
+      "E_AC_pJ": 0.9,
+      "E_MAC_pJ": 4.6,
+      "E_access_pJ": 10.0,
+      "P_leak_W_per_bit": 1.19e-08,
+      "E_hop_pJ": 3.5,
+      "F_Hz": 2000000000.0,
+      "parallelism": 1
+    },
+    "architecture": {
+      "delay": {
+        "params": 239124,
+        "neurons": 532,
+        "d_state": 1,
+        "n_delay": 65536,
+        "n_buffer": 256
+      },
+      "lif": {
+        "params": 187988,
+        "neurons": 704,
+        "d_state": 1,
+        "n_delay": 0
+      },
+      "mc": {
+        "params": 200660,
+        "neurons": 704,
+        "d_state": 8,
+        "n_delay": 0
+      }
+    }
+  },
+  "configs": {
+    "T50_2x2": {
+      "ncores": 4,
+      "t_inf_us": 359.3282681095406,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "lif",
+        "mc",
+        "delay"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": true,
+      "b_spike": true,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 84.54,
+          "spikes": 2750.106007067138,
+          "sop": 2848026.144876325,
+          "flit_hops": 8832.136925795054,
+          "energy_uJ": {
+            "synaptic": 2.5632235303886923,
+            "neuron": 0.12235999999999998,
+            "state": 0.532,
+            "delay_storage": 0.256,
+            "leakage_sb": 10.721624215497435,
+            "comm": 0.030912479240282686,
+            "weight_read": 28.48026144876325,
+            "total": 14.226120225126412,
+            "total_sram": 42.706381673889666,
+            "weights_leak": 32.71986406792854
+          },
+          "ts_share": 0.8090487099335029,
+          "ts_share_sram": 0.26950595588701737
+        },
+        "lif": {
+          "acc_pct": 88.96,
+          "spikes": 8687.52296819788,
+          "sop": 4286553.588339223,
+          "flit_hops": 28587.161219081274,
+          "energy_uJ": {
+            "synaptic": 3.8578982295053006,
+            "neuron": 0.16192,
+            "state": 0.704,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.14482369144668267,
+            "comm": 0.10005506426678447,
+            "weight_read": 42.865535883392226,
+            "total": 4.9686969852187675,
+            "total_sram": 47.834232868611,
+            "weights_leak": 38.67203992568037
+          },
+          "ts_share": 0.1708342637862248,
+          "ts_share_sram": 0.017745109319055978
+        },
+        "mc": {
+          "acc_pct": 91.21,
+          "spikes": 9565.063604240282,
+          "sop": 4430112.478798587,
+          "flit_hops": 31381.10644876325,
+          "energy_uJ": {
+            "synaptic": 3.987101230918728,
+            "neuron": 1.29536,
+            "state": 5.632,
+            "delay_storage": 0.0,
+            "leakage_sb": 1.2631309587962574,
+            "comm": 0.10983387257067137,
+            "weight_read": 44.30112478798587,
+            "total": 12.287426062285656,
+            "total_sram": 56.588550850271524,
+            "weights_leak": 45.00352595739648
+          },
+          "ts_share": 0.5611534038003118,
+          "ts_share_sram": 0.12184674912492785
+        }
+      }
+    },
+    "T50_4x4": {
+      "ncores": 16,
+      "t_inf_us": 89.83206702738515,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "lif",
+        "delay",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": true,
+      "b_spike": true,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 84.54,
+          "spikes": 2750.106007067138,
+          "sop": 2848026.144876325,
+          "flit_hops": 60961.883833922264,
+          "energy_uJ": {
+            "synaptic": 2.5632235303886923,
+            "neuron": 0.12235999999999998,
+            "state": 0.532,
+            "delay_storage": 0.256,
+            "leakage_sb": 2.680406053874359,
+            "comm": 0.2133665934187279,
+            "weight_read": 28.48026144876325,
+            "total": 6.367356177681779,
+            "total_sram": 34.847617626445036,
+            "weights_leak": 8.179966016982135
+          },
+          "ts_share": 0.5447168270610445,
+          "ts_share_sram": 0.09953065059007844
+        },
+        "lif": {
+          "acc_pct": 88.96,
+          "spikes": 8687.52296819788,
+          "sop": 4286553.588339223,
+          "flit_hops": 198392.4355123675,
+          "energy_uJ": {
+            "synaptic": 3.8578982295053006,
+            "neuron": 0.16192,
+            "state": 0.704,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.03620592286167067,
+            "comm": 0.6943735242932862,
+            "weight_read": 42.865535883392226,
+            "total": 5.454397676660259,
+            "total_sram": 48.31993356005248,
+            "weights_leak": 9.668009981420093
+          },
+          "ts_share": 0.13570809587813198,
+          "ts_share_sram": 0.015318852248456333
+        },
+        "mc": {
+          "acc_pct": 91.21,
+          "spikes": 9565.063604240282,
+          "sop": 4430112.478798587,
+          "flit_hops": 220565.71113074204,
+          "energy_uJ": {
+            "synaptic": 3.987101230918728,
+            "neuron": 1.29536,
+            "state": 5.632,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.31578273969906434,
+            "comm": 0.7719799889575972,
+            "weight_read": 44.30112478798587,
+            "total": 12.002223959575389,
+            "total_sram": 56.30334874756126,
+            "weights_leak": 11.25088148934912
+          },
+          "ts_share": 0.49555672013218155,
+          "ts_share_sram": 0.1056381702332881
+        }
+      }
+    },
+    "T50_8x8": {
+      "ncores": 64,
+      "t_inf_us": 22.458016756846288,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": false,
+      "a_sram": false,
+      "a_all_sram": false,
+      "b_sop": false,
+      "b_spike": false,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 84.54,
+          "spikes": 2750.106007067138,
+          "sop": 2848026.144876325,
+          "flit_hops": 441018.5,
+          "energy_uJ": {
+            "synaptic": 2.5632235303886923,
+            "neuron": 0.12235999999999998,
+            "state": 0.532,
+            "delay_storage": 0.256,
+            "leakage_sb": 0.6701015134685897,
+            "comm": 1.54356475,
+            "weight_read": 28.48026144876325,
+            "total": 5.687249793857282,
+            "total_sram": 34.167511242620535,
+            "weights_leak": 2.0449915042455338
+          },
+          "ts_share": 0.2563807756507309,
+          "ts_share_sram": 0.04267508695950188
+        },
+        "lif": {
+          "acc_pct": 88.96,
+          "spikes": 8687.52296819788,
+          "sop": 4286553.588339223,
+          "flit_hops": 1436649.8688162544,
+          "energy_uJ": {
+            "synaptic": 3.8578982295053006,
+            "neuron": 0.16192,
+            "state": 0.704,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.009051480715417667,
+            "comm": 5.0282745408568905,
+            "weight_read": 42.865535883392226,
+            "total": 9.761144251077607,
+            "total_sram": 52.62668013446984,
+            "weights_leak": 2.4170024953550233
+          },
+          "ts_share": 0.0730499890560165,
+          "ts_share_sram": 0.013549239262166142
+        },
+        "mc": {
+          "acc_pct": 91.21,
+          "spikes": 9565.063604240282,
+          "sop": 4430112.478798587,
+          "flit_hops": 1591047.953621908,
+          "energy_uJ": {
+            "synaptic": 3.987101230918728,
+            "neuron": 1.29536,
+            "state": 5.632,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.07894568492476609,
+            "comm": 5.568667837676678,
+            "weight_read": 44.30112478798587,
+            "total": 16.56207475352017,
+            "total_sram": 60.863199541506035,
+            "weights_leak": 2.81272037233728
+          },
+          "ts_share": 0.3448206682988759,
+          "ts_share_sram": 0.09383249201399857
+        }
+      }
+    },
+    "T100_2x2": {
+      "ncores": 4,
+      "t_inf_us": 448.18821024734984,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "lif",
+        "mc",
+        "delay"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "lif",
+        "delay",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": true,
+      "b_spike": true,
+      "b_sop_sram": true,
+      "b_spike_sram": true,
+      "models": {
+        "delay": {
+          "acc_pct": 84.3,
+          "spikes": 5300.758392226148,
+          "sop": 3532305.6819787985,
+          "flit_hops": 17374.032243816255,
+          "energy_uJ": {
+            "synaptic": 3.1790751137809186,
+            "neuron": 0.24471999999999997,
+            "state": 1.064,
+            "delay_storage": 0.512,
+            "leakage_sb": 15.470217866974826,
+            "comm": 0.06080911285335689,
+            "weight_read": 35.323056819787986,
+            "total": 20.530822093609103,
+            "total_sram": 55.85387891339709,
+            "weights_leak": 40.811309929200924
+          },
+          "ts_share": 0.8302744911652138,
+          "ts_share_sram": 0.30519308951497237
+        },
+        "lif": {
+          "acc_pct": 86.4,
+          "spikes": 13929.659010600706,
+          "sop": 4705348.208480566,
+          "flit_hops": 45118.12234982332,
+          "energy_uJ": {
+            "synaptic": 4.23481338763251,
+            "neuron": 0.32384,
+            "state": 1.408,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.16003723276546716,
+            "comm": 0.15791342822438165,
+            "weight_read": 47.05348208480566,
+            "total": 6.284604048622358,
+            "total_sram": 53.33808613342802,
+            "weights_leak": 42.734487660674205
+          },
+          "ts_share": 0.2495045384934306,
+          "ts_share_sram": 0.029398078304552204
+        },
+        "mc": {
+          "acc_pct": 88.3,
+          "spikes": 15672.299469964664,
+          "sop": 5239870.402826855,
+          "flit_hops": 50835.44169611308,
+          "energy_uJ": {
+            "synaptic": 4.71588336254417,
+            "neuron": 2.59072,
+            "state": 11.264,
+            "delay_storage": 0.0,
+            "leakage_sb": 1.5557056834151124,
+            "comm": 0.17792404593639577,
+            "weight_read": 52.39870402826855,
+            "total": 20.30423309189568,
+            "total_sram": 72.70293712016422,
+            "weights_leak": 55.42753949468687
+          },
+          "ts_share": 0.6313809354627645,
+          "ts_share_sram": 0.17632995572416232
+        }
+      }
+    },
+    "T100_4x4": {
+      "ncores": 16,
+      "t_inf_us": 112.04705256183746,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "lif",
+        "delay",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": true,
+      "b_spike": true,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 84.3,
+          "spikes": 5300.758392226148,
+          "sop": 3532305.6819787985,
+          "flit_hops": 119506.86925795053,
+          "energy_uJ": {
+            "synaptic": 3.1790751137809186,
+            "neuron": 0.24471999999999997,
+            "state": 1.064,
+            "delay_storage": 0.512,
+            "leakage_sb": 3.8675544667437065,
+            "comm": 0.41827404240282684,
+            "weight_read": 35.323056819787986,
+            "total": 9.285623622927451,
+            "total_sram": 44.60868044271544,
+            "weights_leak": 10.202827482300231
+          },
+          "ts_share": 0.586234666382863,
+          "ts_share_sram": 0.1220290403732988
+        },
+        "lif": {
+          "acc_pct": 86.4,
+          "spikes": 13929.659010600706,
+          "sop": 4705348.208480566,
+          "flit_hops": 308479.1890459364,
+          "energy_uJ": {
+            "synaptic": 4.23481338763251,
+            "neuron": 0.32384,
+            "state": 1.408,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.04000930819136679,
+            "comm": 1.0796771616607774,
+            "weight_read": 47.05348208480566,
+            "total": 7.086339857484654,
+            "total_sram": 54.13982194229031,
+            "weights_leak": 10.683621915168551
+          },
+          "ts_share": 0.20433811210197134,
+          "ts_share_sram": 0.026745734585807368
+        },
+        "mc": {
+          "acc_pct": 88.3,
+          "spikes": 15672.299469964664,
+          "sop": 5239870.402826855,
+          "flit_hops": 357067.6409010601,
+          "energy_uJ": {
+            "synaptic": 4.71588336254417,
+            "neuron": 2.59072,
+            "state": 11.264,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.3889264208537781,
+            "comm": 1.2497367431537103,
+            "weight_read": 52.39870402826855,
+            "total": 20.20926652655166,
+            "total_sram": 72.60797055482021,
+            "weights_leak": 13.856884873671717
+          },
+          "ts_share": 0.5766130307373474,
+          "ts_share_sram": 0.16049100851890122
+        }
+      }
+    },
+    "T100_8x8": {
+      "ncores": 64,
+      "t_inf_us": 28.011763140459365,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": false,
+      "b_spike": false,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 84.3,
+          "spikes": 5300.758392226148,
+          "sop": 3532305.6819787985,
+          "flit_hops": 882011.4037102474,
+          "energy_uJ": {
+            "synaptic": 3.1790751137809186,
+            "neuron": 0.24471999999999997,
+            "state": 1.064,
+            "delay_storage": 0.512,
+            "leakage_sb": 0.9668886166859266,
+            "comm": 3.087039912985866,
+            "weight_read": 35.323056819787986,
+            "total": 9.053723643452711,
+            "total_sram": 44.3767804632407,
+            "weights_leak": 2.5507068705750577
+          },
+          "ts_share": 0.280866604374968,
+          "ts_share_sram": 0.05730223306290363
+        },
+        "lif": {
+          "acc_pct": 86.4,
+          "spikes": 13929.659010600706,
+          "sop": 4705348.208480566,
+          "flit_hops": 2213958.5379858655,
+          "energy_uJ": {
+            "synaptic": 4.23481338763251,
+            "neuron": 0.32384,
+            "state": 1.408,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.010002327047841698,
+            "comm": 7.748854882950529,
+            "weight_read": 47.05348208480566,
+            "total": 13.725510597630882,
+            "total_sram": 60.77899268243654,
+            "weights_leak": 2.670905478792138
+          },
+          "ts_share": 0.1033114445514762,
+          "ts_share_sram": 0.023330467723556157
+        },
+        "mc": {
+          "acc_pct": 88.3,
+          "spikes": 15672.299469964664,
+          "sop": 5239870.402826855,
+          "flit_hops": 2576433.6007067137,
+          "energy_uJ": {
+            "synaptic": 4.71588336254417,
+            "neuron": 2.59072,
+            "state": 11.264,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.09723160521344452,
+            "comm": 9.017517602473497,
+            "weight_read": 52.39870402826855,
+            "total": 27.685352570231114,
+            "total_sram": 80.08405659849966,
+            "weights_leak": 3.4642212184179293
+          },
+          "ts_share": 0.4103697641701589,
+          "ts_share_sram": 0.14186633504559873
+        }
+      }
+    },
+    "T140_2x2": {
+      "ncores": 4,
+      "t_inf_us": 498.0637073763251,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "lif",
+        "delay",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": true,
+      "b_spike": true,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 83.81,
+          "spikes": 6695.84187279152,
+          "sop": 3910029.6590106008,
+          "flit_hops": 21761.673586572437,
+          "energy_uJ": {
+            "synaptic": 3.5190266931095406,
+            "neuron": 0.342608,
+            "state": 1.4896,
+            "delay_storage": 0.7168,
+            "leakage_sb": 15.638065623265724,
+            "comm": 0.07616585755300354,
+            "weight_read": 39.10029659010601,
+            "total": 21.782266173928267,
+            "total_sram": 60.882562764034276,
+            "weights_leak": 45.35289385457955
+          },
+          "ts_share": 0.8192198865251314,
+          "ts_share_sram": 0.29309649287311457
+        },
+        "lif": {
+          "acc_pct": 87.1,
+          "spikes": 19523.48409893993,
+          "sop": 5486040.176678445,
+          "flit_hops": 63203.48277385159,
+          "energy_uJ": {
+            "synaptic": 4.937436159010601,
+            "neuron": 0.45337599999999995,
+            "state": 1.9712,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.18714218576056538,
+            "comm": 0.22121218970848056,
+            "weight_read": 54.86040176678445,
+            "total": 7.770366534479647,
+            "total_sram": 62.6307683012641,
+            "weights_leak": 49.97228013743916
+          },
+          "ts_share": 0.2777658140299172,
+          "ts_share_sram": 0.034461371691603584
+        },
+        "mc": {
+          "acc_pct": 88.96,
+          "spikes": 21026.214664310955,
+          "sop": 5833938.74204947,
+          "flit_hops": 68429.45318021202,
+          "energy_uJ": {
+            "synaptic": 5.250544867844523,
+            "neuron": 3.6270079999999996,
+            "state": 15.7696,
+            "delay_storage": 0.0,
+            "leakage_sb": 1.7753592081085965,
+            "comm": 0.23950308613074206,
+            "weight_read": 58.339387420494695,
+            "total": 26.66201516208386,
+            "total_sram": 85.00140258257855,
+            "weights_leak": 63.25347633151118
+          },
+          "ts_share": 0.6580507550329256,
+          "ts_share_sram": 0.20640787887074843
+        }
+      }
+    },
+    "T140_4x4": {
+      "ncores": 16,
+      "t_inf_us": 124.51592684408128,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "lif",
+        "delay",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": true,
+      "b_spike": true,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 83.81,
+          "spikes": 6695.84187279152,
+          "sop": 3910029.6590106008,
+          "flit_hops": 148860.5644876325,
+          "energy_uJ": {
+            "synaptic": 3.5190266931095406,
+            "neuron": 0.342608,
+            "state": 1.4896,
+            "delay_storage": 0.7168,
+            "leakage_sb": 3.909516405816431,
+            "comm": 0.5210119757067138,
+            "weight_read": 39.10029659010601,
+            "total": 10.498563074632683,
+            "total_sram": 49.59885966473869,
+            "weights_leak": 11.338223463644887
+          },
+          "ts_share": 0.5825479508328248,
+          "ts_share_sram": 0.1233076011657667
+        },
+        "lif": {
+          "acc_pct": 87.1,
+          "spikes": 19523.48409893993,
+          "sop": 5486040.176678445,
+          "flit_hops": 434092.0172261484,
+          "energy_uJ": {
+            "synaptic": 4.937436159010601,
+            "neuron": 0.45337599999999995,
+            "state": 1.9712,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.046785546440141344,
+            "comm": 1.5193220602915194,
+            "weight_read": 54.86040176678445,
+            "total": 8.928119765742261,
+            "total_sram": 63.788521532526715,
+            "weights_leak": 12.49307003435979
+          },
+          "ts_share": 0.22602581499671126,
+          "ts_share_sram": 0.03163555915637801
+        },
+        "mc": {
+          "acc_pct": 88.96,
+          "spikes": 21026.214664310955,
+          "sop": 5833938.74204947,
+          "flit_hops": 474574.28180212015,
+          "energy_uJ": {
+            "synaptic": 5.250544867844523,
+            "neuron": 3.6270079999999996,
+            "state": 15.7696,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.4438398020271491,
+            "comm": 1.6610099863074206,
+            "weight_read": 58.339387420494695,
+            "total": 26.752002656179094,
+            "total_sram": 85.09139007667379,
+            "weights_leak": 15.813369082877795
+          },
+          "ts_share": 0.6060645257255991,
+          "ts_share_sram": 0.19054148471916618
+        }
+      }
+    },
+    "T140_8x8": {
+      "ncores": 64,
+      "t_inf_us": 31.12898171102032,
+      "sop_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "spike_order": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "energy_order_sram": [
+        "delay",
+        "lif",
+        "mc"
+      ],
+      "a": true,
+      "a_all": true,
+      "a_sram": true,
+      "a_all_sram": false,
+      "b_sop": false,
+      "b_spike": false,
+      "b_sop_sram": false,
+      "b_spike_sram": false,
+      "models": {
+        "delay": {
+          "acc_pct": 83.81,
+          "spikes": 6695.84187279152,
+          "sop": 3910029.6590106008,
+          "flit_hops": 1086170.546819788,
+          "energy_uJ": {
+            "synaptic": 3.5190266931095406,
+            "neuron": 0.342608,
+            "state": 1.4896,
+            "delay_storage": 0.7168,
+            "leakage_sb": 0.9773791014541078,
+            "comm": 3.801596913869258,
+            "weight_read": 39.10029659010601,
+            "total": 10.847010708432906,
+            "total_sram": 49.94730729853892,
+            "weights_leak": 2.8345558659112218
+          },
+          "ts_share": 0.2935167288973827,
+          "ts_share_sram": 0.06374275759100315
+        },
+        "lif": {
+          "acc_pct": 87.1,
+          "spikes": 19523.48409893993,
+          "sop": 5486040.176678445,
+          "flit_hops": 3125953.5768551235,
+          "energy_uJ": {
+            "synaptic": 4.937436159010601,
+            "neuron": 0.45337599999999995,
+            "state": 1.9712,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.011696386610035336,
+            "comm": 10.940837518992932,
+            "weight_read": 54.86040176678445,
+            "total": 18.31454606461357,
+            "total_sram": 73.17494783139803,
+            "weights_leak": 3.1232675085899473
+          },
+          "ts_share": 0.10826893440953399,
+          "ts_share_sram": 0.027098022552456278
+        },
+        "mc": {
+          "acc_pct": 88.96,
+          "spikes": 21026.214664310955,
+          "sop": 5833938.74204947,
+          "flit_hops": 3409406.597173145,
+          "energy_uJ": {
+            "synaptic": 5.250544867844523,
+            "neuron": 3.6270079999999996,
+            "state": 15.7696,
+            "delay_storage": 0.0,
+            "leakage_sb": 0.11095995050678728,
+            "comm": 11.932923090106007,
+            "weight_read": 58.339387420494695,
+            "total": 36.691035908457316,
+            "total_sram": 95.03042332895201,
+            "weights_leak": 3.9533422707194488
+          },
+          "ts_share": 0.43281852248947555,
+          "ts_share_sram": 0.1671102726285405
+        }
+      }
+    }
+  },
+  "summary": {
+    "a_holds": "9/9",
+    "a_holds_sram": "8/9",
+    "a_all_holds": "8/9",
+    "a_all_holds_sram": "0/9",
+    "b_sop_flip": "6/9",
+    "b_spike_flip": "6/9",
+    "b_either_flip": "6/9",
+    "b_sop_flip_sram": "1/9",
+    "b_spike_flip_sram": "1/9",
+    "b_either_flip_sram": "1/9"
+  }
+}
