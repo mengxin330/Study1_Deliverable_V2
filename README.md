@@ -486,6 +486,18 @@ hop count tracks spike count almost linearly once the placement is fixed.
 | | | LIF | 5.391 | 1.971 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** | 3.123 |
 | | | MC | 8.878 | 15.770 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** | 3.953 |
 
+**T = 100 only — the delay-free reference of §7.5.** Reported separately because it was trained at
+a single resolution; it does not enter the 9-cell criteria counts of §6.
+
+| T | Mesh | Model | synaptic | state | delay | leakage | comm | **w_read** | **total (resident)** | **total (SRAM)** | weights leak |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **100** | 2×2 | no-delay | 1.938 | 0.512 | 0.512 | 0.028 | 0.090 | 21.529 | **3.198** | **24.727** | — |
+| | 4×4 | no-delay | 1.938 | 0.512 | 0.512 | 0.007 | 0.617 | 21.529 | **3.703** | **25.232** | — |
+| | 8×8 | no-delay | 1.938 | 0.512 | 0.512 | 0.002 | 4.466 | 21.529 | **7.547** | **29.076** | — |
+
+**Its `delay` column is the 256×(L−1) = 256×2 spike window, not a delay table** — with every delay
+zero, no table is stored, so there is nothing to leak either (`weights leak` = not applicable).
+
 **`weights leak` is reported separately and does not enter either total.**
 
 **Two regimes side by side.** `total (resident)` assumes the weights are spatially expanded, so a synaptic operation costs only the AC arithmetic (§4.4). `total (SRAM)` charges every synaptic operation one 10 pJ SRAM read of its 32-bit weight, $\text{w\_read} = \text{SOP} \times E_{access}$; this is an **upper bound** (weight reuse = 1, see §8.6). Criterion (a) under both regimes is tabulated in §6.1.
@@ -523,6 +535,23 @@ buffer's leakage shrinks with $t_{inf}$.
 
 **MC is the only model that stays above 10 % in all nine SRAM configurations except T=50 at 8×8,
 where it reaches 9.4 % — 0.6 point short.** Plain LIF never exceeds 3.4 % in SRAM.
+
+#### Where the delay-free reference would sit
+
+**It would pass (a) in all three of its configurations — 32.9 / 27.8 / 13.6 % resident — and fail all
+three under weight reads (4.3 / 4.1 / 3.5 %).** We deliberately keep it out of the 9-cell count
+above, for two reasons:
+
+1. **A small model passes (a) more easily.** The delay-free network's temporal state is ~1.05 µJ, *the
+   same absolute amount* as plain LIF's 1.41 µJ at T=100 (both are just the neuron state plus a
+   2-slot window). It clears 10 % only because its total energy is 3.20 µJ rather than LIF's 6.29.
+   Counting it would turn 9/9 into 12/12 without adding evidence.
+2. **It has no delay table, so its "temporal state" is a different quantity.** For delay, 98 % of the
+   temporal state is the delay table (§5.3); for no-delay there is no table at all.
+
+**What it does show is the boundary of the criterion**: (a) measures the *share*, not the *amount* of
+temporal state, and a network that removes the dominant temporal-state term altogether can satisfy
+the share test purely by shrinking its denominator.
 
 ### 6.2 (b) Ranking flips
 
@@ -566,6 +595,22 @@ operation for a weight fetch raises SOP's share of the total until it dominates,
 SOP-only ranking converges on the full-model ranking. This is a limitation of the accounting,
 not of the models — and it is the honest result for a hardware design in which weights are
 re-read on every operation.
+
+#### Where the delay-free reference would sit
+
+**Adding it creates no new flip, because it lands first in both rankings:**
+
+| | SOP order | energy order (2×2, resident) |
+|---|---|---|
+| three models | DL < LIF < MC | LIF < DL < MC |
+| **with no-delay** | **ND(2.15M) < DL(3.53M) < LIF < MC** | **ND(3.20) < LIF(6.29) < DL(16.41) < MC** |
+
+- **ND vs DL**: SOP says ND < DL; energy also says ND < DL → **agree, no flip.**
+- **DL vs LIF**: SOP says DL < LIF; energy says LIF < DL → **flip, already counted in the 6/9.**
+
+**Every pairwise comparison among the original three is unchanged**, so the counts above stand
+whether or not ND is included. ND itself is the cheapest on both counts, making it another instance
+of the weakness described in the previous paragraph rather than new evidence.
 
 ### 6.3 Summary
 
@@ -847,10 +892,15 @@ modified file so there is no patching step:
 
 ```bash
 unzip -q training_bundle.zip -d /content
-bash /content/bundle/runs/02_delay_T100.sh      # delay   (01..03)
-bash /content/bundle/runs/06_pmsn_lif_T100.sh   # PMSN    (04..09)
-# ... 9 runs in total; see patches/TRAINING.md
+bash /content/bundle/runs/02_delay_T100.sh      # delay      (01..03)
+bash /content/bundle/runs/06_pmsn_lif_T100.sh   # PMSN       (04..09)
+bash /content/bundle/runs/10_nodelay_cos.sh     # no-delay   (10..11, T=100 only)
+# ... 11 runs in total; see patches/TRAINING.md and §7.5
 ```
+
+**The two no-delay scripts are also copied verbatim into `patches/runs/`, so they travel with this
+deliverable and do not depend on the bundle.** Both set `use_batch_norm = False` and
+`max_grad_val = 1.5` before launching — without those two changes the network does not learn (§7.5).
 
 **Measurement** — reads the nine checkpoints under `checkpoints/` and writes the
 result JSON:
