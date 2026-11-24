@@ -538,16 +538,30 @@ where it reaches 9.4 % — 0.6 point short.** Plain LIF never exceeds 3.4 % in S
 
 #### Where the delay-free reference would sit
 
-**It would pass (a) in all three of its configurations — 32.9 / 27.8 / 13.6 % resident — and fail all
-three under weight reads (4.3 / 4.1 / 3.5 %).** We deliberately keep it out of the 9-cell count
-above, for two reasons:
+**TASK 4's brief is to use the delay-free network as the control in place of plain LIF. Reported here
+as a supplement: the headline counts above still use LIF, because the delay-free model exists at only
+one resolution.**
+
+Substituting no-delay for LIF at T=100, across all three mesh sizes:
+
+| T | Mesh | no-delay | (a) | no-delay (SRAM) | (a) SRAM |
+|---|---|---|---|---|---|
+| 100 | 2×2 | **32.9 %** | ✅ | **4.3 %** | ❌ |
+| 100 | 4×4 | **27.8 %** | ✅ | **4.1 %** | ❌ |
+| 100 | 8×8 | **13.6 %** | ✅ | **3.5 %** | ❌ |
+
+**Resident 3/3, weight-reads 0/3.**
+
+Three caveats on reading this as a substitute for the LIF row:
 
 1. **A small model passes (a) more easily.** The delay-free network's temporal state is ~1.05 µJ, *the
    same absolute amount* as plain LIF's 1.41 µJ at T=100 (both are just the neuron state plus a
    2-slot window). It clears 10 % only because its total energy is 3.20 µJ rather than LIF's 6.29.
-   Counting it would turn 9/9 into 12/12 without adding evidence.
 2. **It has no delay table, so its "temporal state" is a different quantity.** For delay, 98 % of the
    temporal state is the delay table (§5.3); for no-delay there is no table at all.
+3. **It cannot replace LIF's role, because it is not a "cheap but SOP-heavy" model.** Plain LIF at
+   T=100/2×2 has the highest SOP (4.56 M) and the lowest energy (6.29 µJ) — that inversion is what
+   criterion (b) needs. See §6.2 for what happens to (b) when no-delay takes its place.
 
 **What it does show is the boundary of the criterion**: (a) measures the *share*, not the *amount* of
 temporal state, and a network that removes the dominant temporal-state term altogether can satisfy
@@ -598,19 +612,35 @@ re-read on every operation.
 
 #### Where the delay-free reference would sit
 
-**Adding it creates no new flip, because it lands first in both rankings:**
+**TASK 4's brief is to put the delay-free network in the control slot that plain LIF occupies.
+Reported as a supplement; the headline 6/9 and 0/9 above still use LIF.**
+
+Model set becomes **{delay, no-delay, MC}**, T=100, all three meshes:
+
+| Mesh | SOP order | energy order (resident) | energy order (SRAM) | SOP ≠ E | SOP ≠ E (SRAM) |
+|---|---|---|---|---|---|
+| 2×2 | ND(2.15M) < DL(3.53M) < MC(7.31M) | ND(3.20) < DL(16.41) < MC(20.30) | ND(24.73) < DL(51.73) < MC(72.70) | ❌ | ❌ |
+| 4×4 | same | ND(3.70) < DL(8.26) < MC(20.21) | ND(25.23) < DL(43.58) < MC(72.61) | ❌ | ❌ |
+| 8×8 | same | ND(7.55) < DL(8.80) < MC(27.68) | ND(29.08) < DL(44.12) < MC(80.08) | ❌ | ❌ |
+
+**0/3 — the substitution removes the flip entirely.**
+
+**Why: no-delay is not a "cheap but SOP-heavy" model.** At T=100/2×2 plain LIF has the *highest* SOP
+(4.56 M) and the *lowest* energy (6.29 µJ); that inversion is exactly what criterion (b) detects. The
+delay-free network instead ranks first on SOP, energy and storage simultaneously, so every ranking
+agrees with every other. **A substitute is only informative if it occupies a different corner of the
+SOP/energy plane than the model it replaces, and no-delay does not.**
+
+**If no-delay is simply added to the original three (rather than replacing LIF), the counts do not
+change either:**
 
 | | SOP order | energy order (2×2, resident) |
 |---|---|---|
 | three models | DL < LIF < MC | LIF < DL < MC |
-| **with no-delay** | **ND(2.15M) < DL(3.53M) < LIF < MC** | **ND(3.20) < LIF(6.29) < DL(16.41) < MC** |
+| **with no-delay added** | **ND < DL < LIF < MC** | **ND < LIF < DL < MC** |
 
-- **ND vs DL**: SOP says ND < DL; energy also says ND < DL → **agree, no flip.**
-- **DL vs LIF**: SOP says DL < LIF; energy says LIF < DL → **flip, already counted in the 6/9.**
-
-**Every pairwise comparison among the original three is unchanged**, so the counts above stand
-whether or not ND is included. ND itself is the cheapest on both counts, making it another instance
-of the weakness described in the previous paragraph rather than new evidence.
+ND lands first in both, so **ND vs DL agrees and DL vs LIF still flips** — every pairwise comparison
+among the original three is untouched.
 
 ### 6.3 Summary
 
