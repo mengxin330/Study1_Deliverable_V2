@@ -1,4 +1,4 @@
-﻿# Study 1 — How large is the energy share of temporal state in brain-inspired SNNs?
+# Study 1 — How large is the energy share of temporal state in brain-inspired SNNs?
 
 **[English](README.md) | [中文](README.zh.md)**
 
@@ -670,6 +670,100 @@ change.** At $h=352$ with per-neuron delays the model did improve with finer fra
 grid is dense enough that frame resolution is no longer the limiting factor. What limits accuracy
 now is the parameter budget, not the delay granularity.
 
+### 7.5 The delay-free reference network (TASK 4)
+
+**The brief asks for one delay-free model at T=100 with the same architecture and matching accuracy. The first half is achievable; the second is not, and the reason is informative.**
+
+We trained `SNN_vanilla_synaptic_recurrent` — the identical per-synapse architecture of §1 with
+`recurrent_delays` fixed at 0 and frozen (65,536 zeros, `requires_grad=False`), leaving **172,564
+trainable parameters** against the delay model's 173,588 (the difference is the two BatchNorm
+layers). Two schedulers were tried, both 10 epochs, $h=256$:
+
+| Scheduler | Test acc | Best val | Best epoch |
+|---|---|---|---|
+| cosine | **49.81 %** | 50.20 % | 9 |
+| one-cycle | 49.21 % | 47.03 % | 9 |
+
+**Both plateau around 50 %, 34.5 points below the delay model's 84.30 %.**
+
+#### BatchNorm had to be removed
+
+With BatchNorm enabled the network did not learn at all (train accuracy 13 %, validation 24 % — the
+inverted train/val gap that signals running statistics that do not describe the batches). Its
+first-order recurrence makes each layer's input strongly autocorrelated across adjacent timesteps, so
+40-sample batches estimate the statistics poorly. Disabling BatchNorm raised the ceiling to 49.81 %;
+it stays there. **The delay model trains fine with BatchNorm**, because its feedback arrives 10–31
+frames late, which decorrelates it.
+
+#### Why it cannot be trained — the paper predicts this
+
+DelRec states the mechanism explicitly ([arXiv:2509.24852](https://arxiv.org/html/2509.24852v2), §A.4
+*"Recurrent delays mitigate the risk of exploding gradients"*):
+
+> "recurrent delays may mitigate gradient challenges by implementing **temporal skip connections**,
+> improving gradient propagation during training"
+
+and in Fig. 1B:
+
+> "Delays in recurrent connections reduce the risks of exploding or vanishing gradients by **bridging
+> distant time steps**."
+
+With all delays zero the feedback path is one step long. That is exactly the configuration the paper
+identifies as ill-conditioned; removing the delays removes the skip connections.
+
+#### The evidence that it is not a capacity problem
+
+PMSN's generalised multi-compartment model **reduces to a standard LIF when $n=1$ and $\beta=0$**
+([PMSN §IV](https://arxiv.org/html/2408.14917v1), immediately after Eq. 4: *"when the number of
+compartments n is set to 1 and β = 0, our model is simplified to a standard LIF model"*). Our
+`pmsn_lif` checkpoint was trained with `d_state=1`, i.e. it **is** a standard LIF — and reaches
+**86.40 %** at T=100.
+
+| Model | Topology | Neuron | Test acc |
+|---|---|---|---|
+| PMSN `lif` (n=1) | **feedforward** | standard LIF | **86.40 %** |
+| PMSN `mc` (n=8) | feedforward | multi-compartment | 88.30 % |
+| delay | **recurrent** | LIF + per-synapse delays | **84.30 %** |
+| no-delay | **recurrent** | standard LIF, no delays | **49.81 %** |
+
+**A standard LIF reaches 86 % in a feedforward net but only 50 % inside a delay-free recurrence.**
+The neuron is not the limitation, the training budget is not the limitation (PMSN needs 5 epochs) —
+the *recurrent connection without temporal skip* is. The recurrence actively costs 36.6 points
+relative to simply not having one.
+
+#### What the delay table buys
+
+Accounting as in §4, no delay table to store (`n_delay = 0`), spike window only needs $L=3$
+($t-1$, $t-2$; σ=0), 2,264 test samples:
+
+| | no-delay | delay | ratio |
+|---|---|---|---|
+| SOP (T=100) | 2,152,860 | 3,532,306 | 0.61× |
+| spikes per inference | 7,978 | 5,301 | 1.51× |
+| storage bits | **8,704** | 2,128,000 | **0.004×** |
+| energy 2×2, resident | **3.20 µJ** | 16.41 µJ | **0.20×** |
+| energy 4×4, resident | 3.70 | 8.26 | 0.45× |
+| energy 8×8, resident | 7.55 | 8.80 | 0.86× |
+| energy 2×2, weights in SRAM | 24.73 | 51.73 | 0.48× |
+| temporal-state share (2×2) | 32.9 % | 78.8 % | — |
+
+**The delay model's 16.41 µJ is dominated by 11.35 µJ of leakage on its 2.1 Mbit delay table.**
+Removing the table removes that, and the whole network costs 3.20 µJ — but delivers 49.81 % instead
+of 84.30 %.
+
+$$\underbrace{3.20\ \mu J}_{\text{no-delay}}\ \xrightarrow{\ +13.2\ \mu J\ }\ \underbrace{16.41\ \mu J}_{\text{delay}}\qquad\Longleftrightarrow\qquad 49.81\%\ \to\ 84.30\%$$
+
+**Roughly 0.38 µJ per accuracy point at 2×2. The gap narrows with mesh size** — at 8×8 delay is only
+14 % more expensive than no-delay, because communication dominates and the delay model emits 1.5×
+fewer spikes.
+
+#### Consequence for the report
+
+**TASK 4 cannot supply an accuracy-matched delay-free control.** We therefore do not use it to price
+the delay mechanism; §5's cost figures describe the delay model itself, and the delay-free network
+serves only as a *lower bound on cost* and an *upper bound on how badly the recurrence degrades
+without delays*. Both bounds are reported above.
+
 ---
 
 ## 8. Placement and cost-model choices affect the result
@@ -804,7 +898,7 @@ stable, and the 10-sample shortcut is good to ~2 %.
 
 ### 9.4 Checkpoint locations
 
-All nine checkpoints ship with this deliverable, under `checkpoints/`:
+All eleven checkpoints ship with this deliverable, under `checkpoints/`:
 
 ```
 checkpoints/
@@ -817,8 +911,15 @@ checkpoints/
 ├── pmsn_lif_T100/  checkpoint.pth  log.txt
 ├── pmsn_mc_T100/   checkpoint.pth  log.txt
 ├── pmsn_lif_T140/  checkpoint.pth  log.txt
-└── pmsn_mc_T140/   checkpoint.pth  log.txt
+├── pmsn_mc_T140/   checkpoint.pth  log.txt
+├── nodelay_cos_10ep/       best.pth  last.pth  config.json  final_test.json
+│                           train_res.csv  val_res.csv  final_delays.npz
+└── nodelay_onecycle_10ep/  same
 ```
+
+**The two `nodelay_*` runs are §7.5's delay-free reference** (T=100 only). Their `final_delays.npz`
+is present for symmetry but is all zeros. Reproduce their energy with
+`python scripts/measure_nodelay.py --samples 2264`.
 
 **All paths are resolved relative to `scripts/study1_measure.py`**, so the directory
 can be moved or copied without editing anything. Only the DelRec checkout and the

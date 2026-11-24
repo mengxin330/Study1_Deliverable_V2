@@ -1,0 +1,8 @@
+{
+  "acc": 49.210526315789465,
+  "loss": 1.7271971388867027,
+  "best_val": 47.03383162863887,
+  "best_epoch": 9,
+  "model": "SNN_vanilla_synaptic_recurrent",
+  "seed": 1111
+}

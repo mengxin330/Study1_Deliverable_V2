@@ -573,6 +573,73 @@ $$E_{LIF+inst} = \underbrace{N_{syn} N_{spikes/syn}(\cdots)}_{\text{event-driven
 
 **早先"delay 偏好更细分辨率"的结论在改用 per-synapse 后不再成立。** 在 $h=352$ + per-neuron 延迟时，模型确实随帧变细而变好（86.56 → 87.24 → 87.99）。改用 per-synapse 表、$h=256$ 后，这个效应消失——延迟网格已经足够密，帧分辨率不再是限制因素。现在限制精度的是参数预算，不是延迟粒度。
 
+### 7.5 无延迟参考网络（TASK 4）
+
+**任务要求一个 T=100、同架构、精度匹配的无延迟模型。前半可以做到，后半做不到，而原因本身是有信息量的。**
+
+我们训练了 `SNN_vanilla_synaptic_recurrent`——§1 中同一套 per-synapse 架构，只把 `recurrent_delays` 固定为 0 并冻结（65,536 个零，`requires_grad=False`），**可训练参数 172,564**，而 delay 模型是 173,588（差的就是两层 BatchNorm）。两种调度各跑 10 轮，$h=256$：
+
+| 调度 | 测试精度 | 最佳验证 | 最佳轮次 |
+|---|---|---|---|
+| cosine | **49.81 %** | 50.20 % | 9 |
+| one-cycle | 49.21 % | 47.03 % | 9 |
+
+**两者都停在 50% 附近，比 delay 模型的 84.30% 低 34.5 个点。**
+
+#### BatchNorm 必须去掉
+
+开启 BatchNorm 时网络完全不学（训练精度 13%、验证 24%——这种训练/验证倒挂说明 running statistics 没能描述当前 batch）。它的一阶递归让每层输入在相邻时间步高度自相关，40 样本的 batch 估不准统计量。关掉 BatchNorm 把上限抬到 49.81%，然后就停在那里了。**delay 模型开着 BatchNorm 训练正常**，因为它的反馈晚 10–31 帧才到，天然去相关。
+
+#### 为什么训不动——论文预测了这一点
+
+DelRec 明确写明了机制（[arXiv:2509.24852](https://arxiv.org/html/2509.24852v2) §A.4，标题就是*"Recurrent delays mitigate the risk of exploding gradients"*）：
+
+> "recurrent delays may mitigate gradient challenges by implementing **temporal skip connections**, improving gradient propagation during training"
+
+图 1B 的说明更直接：
+
+> "Delays in recurrent connections reduce the risks of exploding or vanishing gradients by **bridging distant time steps**."
+
+延迟全为 0 时，反馈路径只有一步长——正是论文指认的病态配置；去掉延迟就等于去掉了 skip connection。
+
+#### 这不是容量问题的证据
+
+PMSN 的广义多隔室模型**在 $n=1$ 且 $\beta=0$ 时退化为标准 LIF**（[PMSN §IV](https://arxiv.org/html/2408.14917v1)，Eq. 4 之后：*"when the number of compartments n is set to 1 and β = 0, our model is simplified to a standard LIF model"*）。我们的 `pmsn_lif` checkpoint 训练时 `d_state=1`，也就是**它就是标准 LIF**——T=100 达到 **86.40%**。
+
+| 模型 | 拓扑 | 神经元 | 测试精度 |
+|---|---|---|---|
+| PMSN `lif` (n=1) | **前馈** | 标准 LIF | **86.40 %** |
+| PMSN `mc` (n=8) | 前馈 | 多隔室 | 88.30 % |
+| delay | **循环** | LIF + per-synapse 延迟 | **84.30 %** |
+| 无延迟 | **循环** | 标准 LIF，无延迟 | **49.81 %** |
+
+**同一个标准 LIF，在前馈网络里能到 86%，放进无延迟的循环连接里只有 50%。** 不是神经元不够，也不是训练预算不够（PMSN 只要 5 轮）——是**没有 temporal skip 的循环连接本身**。相比"干脆不要循环"，这个循环让性能掉了 36.6 个点。
+
+#### 延迟表换来了什么
+
+按 §4 口径核算，无延迟表可存（`n_delay = 0`），脉冲窗口只需 $L=3$（$t-1$、$t-2$，σ=0），2,264 个测试样本：
+
+| | 无延迟 | delay | 比值 |
+|---|---|---|---|
+| SOP (T=100) | 2,152,860 | 3,532,306 | 0.61× |
+| 每次推理脉冲数 | 7,978 | 5,301 | 1.51× |
+| 存储比特 | **8,704** | 2,128,000 | **0.004×** |
+| 能量 2×2，权重驻留 | **3.20 µJ** | 16.41 µJ | **0.20×** |
+| 能量 4×4，权重驻留 | 3.70 | 8.26 | 0.45× |
+| 能量 8×8，权重驻留 | 7.55 | 8.80 | 0.86× |
+| 能量 2×2，权重在 SRAM | 24.73 | 51.73 | 0.48× |
+| 时间状态占比 (2×2) | 32.9 % | 78.8 % | — |
+
+**delay 模型的 16.41 µJ 里有 11.35 µJ 是那 2.1 Mbit 延迟表的漏电。** 去掉表就只剩 3.20 µJ——但精度从 84.30% 掉到 49.81%。
+
+$$\underbrace{3.20\ \mu J}_{\text{无延迟}}\ \xrightarrow{\ +13.2\ \mu J\ }\ \underbrace{16.41\ \mu J}_{\text{delay}}\qquad\Longleftrightarrow\qquad 49.81\%\ \to\ 84.30\%$$
+
+**2×2 上大约是每提升 1 个精度点花 0.38 µJ。这个差距随 mesh 变大而收窄**——8×8 上 delay 只贵 14%，因为通信占主导，而 delay 模型的脉冲数只有 1.51 分之一。
+
+#### 对本报告的影响
+
+**TASK 4 无法提供精度匹配的无延迟对照。** 所以我们不用它来给延迟机制定价；§5 的成本数字描述的是 delay 模型本身，无延迟网络只作为**成本下界**和**"循环连接在无延迟时退化得多严重"的上界**。两个边界都在上面报告了。
+
 ---
 
 ## 8. placement 与成本模型的选择会影响结果
@@ -697,7 +764,7 @@ python scripts/check_10_samples.py
 
 ### 9.4 Checkpoint 位置
 
-九个 checkpoint 全部随本交付物提供，位于 `checkpoints/`：
+十一个 checkpoint 全部随本交付物提供，位于 `checkpoints/`：
 
 ```
 checkpoints/
@@ -710,8 +777,13 @@ checkpoints/
 ├── pmsn_lif_T100/  checkpoint.pth  log.txt
 ├── pmsn_mc_T100/   checkpoint.pth  log.txt
 ├── pmsn_lif_T140/  checkpoint.pth  log.txt
-└── pmsn_mc_T140/   checkpoint.pth  log.txt
+├── pmsn_mc_T140/   checkpoint.pth  log.txt
+├── nodelay_cos_10ep/       best.pth  last.pth  config.json  final_test.json
+│                           train_res.csv  val_res.csv  final_delays.npz
+└── nodelay_onecycle_10ep/  同上
 ```
+
+**两个 `nodelay_*` 是 §7.5 的无延迟参考**（仅 T=100）。它们的 `final_delays.npz` 为对称而保留，内容全零。复现其能耗：`python scripts/measure_nodelay.py --samples 2264`。
 
 **所有路径都相对 `scripts/study1_measure.py` 解析**，因此目录可整体移动或复制而无需改动。只有 DelRec 仓库与 SHD 的 `.h5` 文件是外部的——若它们不在默认位置，设置 `DELREC_ROOT` 与 `SHD_TEST_H5`（§9.2）。
 
