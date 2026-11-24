@@ -882,13 +882,13 @@ checkpoints/
 
 | 文件 | 回答什么问题 |
 |---|---|
-| `figs/study1_main_T100_2x2.png` | 白皮书要求的形态：三个模型的堆叠能量分解，叠加脉冲数（T=100，2×2）。delay 那一柱几乎全被其 2.1 Mbit 延迟表的漏电占据 |
-| `figs/study1_grid_resolution_mesh.png` | 分辨率与 mesh 大小如何改变能量构成（3 个分辨率 × 2 个 mesh） |
+| `figs/study1_main_2x2_allT.png` | 白皮书要求的形态：三个模型的堆叠能量分解，叠加脉冲数（T=100，2×2）。delay 那一柱几乎全被其 2.1 Mbit 延迟表的漏电占据 |
+| `figs/study1_grid_resolution_mesh.png` | 分辨率与 mesh 大小如何改变能量构成——完整的 3 × 3 敏感性网格（3 个分辨率 × 3 个 mesh） |
 | `figs/study1_ranking_flip.png` | 各分辨率（2×2）下三种估计的排序，标出哪一对一致——T=50 时延迟网络按脉冲数最便宜却按能量最贵，T=100 时按能量最贵，T=140 时三种估计一致 |
 
 **TASK 5 的三条要求逐条落实如下。**
 
-1. **主图用 2×2。** `study1_main_T100_2x2.png` 是 T=100、四个核的单幅面板。4×4 与 8×8 只出现在 `study1_grid_resolution_mesh.png` 的 8×8 行和 §5.5 的表格里，作为敏感性案例；没有任何结论依赖它们。
+1. **主图用 2×2。** `study1_main_2x2_allT.png` 在四个核上同时给出三个时间分辨率——mesh 固定为主配置，让时间轴成为唯一变量。4×4 与 8×8 只出现在 `study1_grid_resolution_mesh.png`（完整的 3 × 3 网格）和 §5.5 的表格里，作为敏感性案例；没有任何结论依赖它们。
 2. **每个假设都写进图注。** 主图下方有一个八条的图注框，覆盖精度、权重口径、mesh 选择、placement、多播上界、并行度、漏电来源、延迟存储口径，以及 checkpoint 的挑选方式。每一条都指向讨论它的章节。
 3. **checkpoint 按验证精度选择。** `experiments/train.py` 在 `val_acc >= best_val_acc` 时保存 `best.pth`（L211-213），随后用该 checkpoint 在测试集上评估（L220-221，注释写明 *"final test on the best validation checkpoint"*）。**本报告中没有任何 checkpoint 是按测试精度挑选的。**
 

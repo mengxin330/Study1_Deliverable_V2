@@ -126,13 +126,20 @@ def main():
     plt.rcParams.update({"font.size": 9, "axes.spines.top": False,
                          "axes.spines.right": False, "figure.dpi": 150})
 
-    # ---------- figure 1: main (T=100, 2x2) ----------
-    fig, ax = plt.subplots(figsize=(8.6, 5.6))
-    panel(ax, E, SPK, 100, 4,
-          "Study 1 — T = 100 (14 ms/frame), 2×2 mesh (4 cores)\n"
-          "stacked energy per inference, with spike counts overlaid")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10), fontsize=7.4,
-              frameon=False, ncol=3)
+    # ---------- figure 1: main (three resolutions, all 2x2) ----------
+    # White paper TASK 5.1: 2x2 is the main mesh; 4x4 and 8x8 are sensitivity
+    # cases (figure 2).  All three resolutions stay in the main figure because
+    # the time axis is the report's subject.
+    fig, axes = plt.subplots(1, 3, figsize=(13.2, 5.0), sharey=False)
+    for j, T in enumerate((50, 100, 140)):
+        panel(axes[j], E, SPK, T, 4,
+              f"T = {T}  ({1400/T:.0f} ms/frame)\n2×2 mesh (4 cores)")
+    axes[0].set_ylabel("energy / inference (µJ)")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", ncol=6, fontsize=7.6, frameon=False,
+               bbox_to_anchor=(0.5, -0.055))
+    fig.suptitle("Study 1 — stacked energy per inference, 2×2 mesh, all three time resolutions\n"
+                 "spike counts overlaid as black dots", fontsize=11, y=1.0)
 
     # White paper TASK 5.2: every assumption goes in the caption.
     caption = (
@@ -149,26 +156,29 @@ def main():
         "P_leak is an 8 MB cache value, so small-SRAM leakage is underestimated.\n"
         "(7) Delay values are charged to 'delay storage' as 65,536 × 32 bit, not to weights "
         "(§5.3); the spike window is 256 windows of L−1 slots.\n"
-        "(8) Checkpoints are the best-validation epoch, not the best-test epoch."
+        "(8) Checkpoints are the best-validation epoch, not the best-test epoch.\n"
+        "(9) The LIF bar is PMSN d_state=1, not the TASK 4 delay-free network: that network "
+        "reaches only 49.81 % against the delay model's 84.30 % and cannot serve as a baseline "
+        "(§6.1, §7.5). Its energy is tabulated separately in §5.5."
     )
-    fig.text(0.5, -0.02, caption, ha="center", va="top", fontsize=6.6,
+    fig.text(0.5, -0.22, caption, ha="center", va="top", fontsize=6.5,
              linespacing=1.5, wrap=True,
              bbox=dict(boxstyle="round,pad=0.6", facecolor="#F7F7F7",
                        edgecolor="#CCCCCC", linewidth=0.7))
     fig.tight_layout()
-    fig.savefig(out / "study1_main_T100_2x2.png", bbox_inches="tight")
+    fig.savefig(out / "study1_main_2x2_allT.png", bbox_inches="tight")
     plt.close(fig)
 
-    # ---------- figure 2: 3 resolutions x 2 meshes ----------
-    fig, axes = plt.subplots(2, 3, figsize=(12.4, 7.4), sharex=False)
-    for j, T in enumerate((50, 100, 140)):
-        panel(axes[0, j], E, SPK, T, 4,
-              f"T = {T} ({1400/T:.0f} ms/frame), 2×2", compact=True)
-        panel(axes[1, j], E, SPK, T, 64,
-              f"T = {T} ({1400/T:.0f} ms/frame), 8×8", compact=True)
+    # ---------- figure 2: 3 resolutions x 3 meshes (sensitivity) ----------
+    fig, axes = plt.subplots(3, 3, figsize=(13.0, 10.6), sharex=False)
+    for i, nc in enumerate((4, 16, 64)):
+        mesh = {4: "2×2", 16: "4×4", 64: "8×8"}[nc]
+        for j, T in enumerate((50, 100, 140)):
+            panel(axes[i, j], E, SPK, T, nc,
+                  f"T = {T} ({1400/T:.0f} ms/frame), {mesh} ({nc} cores)", compact=True)
     h, l = axes[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc="lower center", ncol=6, fontsize=8, frameon=False,
-               bbox_to_anchor=(0.5, -0.015))
+               bbox_to_anchor=(0.5, -0.012))
     fig.suptitle("Study 1 — energy breakdown across time-step resolutions and mesh sizes",
                  fontsize=11, y=0.98)
     fig.tight_layout(rect=[0, 0.03, 1, 0.96])
@@ -204,7 +214,7 @@ def main():
     plt.close(fig)
 
     print("\nsaved:")
-    for f in ("study1_main_T100_2x2.png", "study1_grid_resolution_mesh.png",
+    for f in ("study1_main_2x2_allT.png", "study1_grid_resolution_mesh.png",
               "study1_ranking_flip.png"):
         p = out / f
         print(f"  {p}  ({p.stat().st_size/1024:.0f} KB)")
