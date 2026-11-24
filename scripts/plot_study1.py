@@ -27,6 +27,10 @@ SHOW = {"delay": "Delay-trained\n(DelRec, 256, per-synapse)",
         "lif": "Plain LIF\n(PMSN d_state=1)",
         "mc": "Multi-compartment\n(PMSN d_state=8)"}
 SHORT = {"delay": "DL", "lif": "LIF", "mc": "MC"}
+# Compact labels for the multi-panel figure, where full names overlap.
+SHORT_FULL = {"delay": "Delay\n(per-synapse)",
+              "lif": "LIF\n(d_state=1)",
+              "mc": "MC\n(d_state=8)"}
 COLOR = {"delay": "#C44E52", "lif": "#4C72B0", "mc": "#DD8452"}
 
 # JSON energy key -> (figure part name, colour)
@@ -73,7 +77,7 @@ def load(path: pathlib.Path):
     return E, SPK, ACC, SOP
 
 
-def panel(ax, E, SPK, T, ncores, title):
+def panel(ax, E, SPK, T, ncores, title, compact=False, rotate=0):
     xs = np.arange(len(MODELS))
     bottoms = np.zeros(len(MODELS))
     for key, lab, col in PARTS:
@@ -83,7 +87,9 @@ def panel(ax, E, SPK, T, ncores, title):
         bottoms += vals
     top = float(bottoms.max())
     ax.set_xticks(xs)
-    ax.set_xticklabels([SHOW[m] for m in MODELS], fontsize=7.5)
+    labels = [SHORT_FULL[m] if compact else SHOW[m] for m in MODELS]
+    ax.set_xticklabels(labels, fontsize=7.5, rotation=rotate,
+                       ha="right" if rotate else "center")
     ax.set_ylabel("energy / inference (µJ)")
     ax.set_title(title, fontsize=10, pad=8)
     ax.set_ylim(0, top * 1.32)
@@ -121,12 +127,34 @@ def main():
                          "axes.spines.right": False, "figure.dpi": 150})
 
     # ---------- figure 1: main (T=100, 2x2) ----------
-    fig, ax = plt.subplots(figsize=(7.8, 4.8))
+    fig, ax = plt.subplots(figsize=(8.6, 5.6))
     panel(ax, E, SPK, 100, 4,
           "Study 1 — T = 100 (14 ms/frame), 2×2 mesh (4 cores)\n"
           "stacked energy per inference, with spike counts overlaid")
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), fontsize=7.4,
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.10), fontsize=7.4,
               frameon=False, ncol=3)
+
+    # White paper TASK 5.2: every assumption goes in the caption.
+    caption = (
+        "Assumptions.  (1) FP32, 32-bit weights and state; the white paper's low-precision "
+        "regime is not modelled.\n"
+        "(2) Weights resident — a synaptic operation costs only the AC arithmetic (0.9 pJ). "
+        "The SRAM-weight case is in §5.5.\n"
+        "(3) 2×2 mesh (4 cores) is the main configuration; 4×4 and 8×8 appear only as "
+        "sensitivity cases (§5.5, fig. 2).\n"
+        "(4) Sequential placement, core(i) = floor(i·n_cores/n_total); no optimisation (§8.1).\n"
+        "(5) Communication counted as a unicast upper bound, flit_hops × 3.5 pJ; spikes in the "
+        "same timestep are not merged (§8.2, §8.3).\n"
+        "(6) par = 1, i.e. one core's worth of parallelism, no literature basis (§8.4); "
+        "P_leak is an 8 MB cache value, so small-SRAM leakage is underestimated.\n"
+        "(7) Delay values are charged to 'delay storage' as 65,536 × 32 bit, not to weights "
+        "(§5.3); the spike window is 256 windows of L−1 slots.\n"
+        "(8) Checkpoints are the best-validation epoch, not the best-test epoch."
+    )
+    fig.text(0.5, -0.02, caption, ha="center", va="top", fontsize=6.6,
+             linespacing=1.5, wrap=True,
+             bbox=dict(boxstyle="round,pad=0.6", facecolor="#F7F7F7",
+                       edgecolor="#CCCCCC", linewidth=0.7))
     fig.tight_layout()
     fig.savefig(out / "study1_main_T100_2x2.png", bbox_inches="tight")
     plt.close(fig)
@@ -135,9 +163,9 @@ def main():
     fig, axes = plt.subplots(2, 3, figsize=(12.4, 7.4), sharex=False)
     for j, T in enumerate((50, 100, 140)):
         panel(axes[0, j], E, SPK, T, 4,
-              f"T = {T} ({1400/T:.0f} ms/frame), 2×2")
+              f"T = {T} ({1400/T:.0f} ms/frame), 2×2", compact=True)
         panel(axes[1, j], E, SPK, T, 64,
-              f"T = {T} ({1400/T:.0f} ms/frame), 8×8")
+              f"T = {T} ({1400/T:.0f} ms/frame), 8×8", compact=True)
     h, l = axes[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc="lower center", ncol=6, fontsize=8, frameon=False,
                bbox_to_anchor=(0.5, -0.015))
