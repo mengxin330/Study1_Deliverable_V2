@@ -536,13 +536,18 @@ buffer's leakage shrinks with $t_{inf}$.
 **MC is the only model that stays above 10 % in all nine SRAM configurations except T=50 at 8×8,
 where it reaches 9.4 % — 0.6 point short.** Plain LIF never exceeds 3.4 % in SRAM.
 
-#### Where the delay-free reference would sit
+#### Putting the delay-free network in the LIF slot
 
-**TASK 4's brief is to use the delay-free network as the control in place of plain LIF. Reported here
-as a supplement: the headline counts above still use LIF, because the delay-free model exists at only
-one resolution.**
+**TASK 4's brief is to use the delay-free network as the control instead of plain LIF. The numbers are
+reported here for completeness, but they cannot support an inference, because the delay-free network
+never reaches a usable accuracy.**
 
-Substituting no-delay for LIF at T=100, across all three mesh sizes:
+**The blocking fact**: the delay-free model scores **49.81 %** on SHD test, against the delay model's
+**84.30 %** (§7.5). A control is only a control if it solves the task; at 34.5 points below, this one
+does not. **Its energy figures describe a network that cannot replace the delay model**, so every
+comparison below is conditional on ignoring accuracy — which is precisely what a control may not do.
+
+Substituting it for LIF at T=100, across all three mesh sizes:
 
 | T | Mesh | no-delay | (a) | no-delay (SRAM) | (a) SRAM |
 |---|---|---|---|---|---|
@@ -550,22 +555,20 @@ Substituting no-delay for LIF at T=100, across all three mesh sizes:
 | 100 | 4×4 | **27.8 %** | ✅ | **4.1 %** | ❌ |
 | 100 | 8×8 | **13.6 %** | ✅ | **3.5 %** | ❌ |
 
-**Resident 3/3, weight-reads 0/3.**
+**Resident 3/3, weight-reads 0/3 — but this row is not evidence.** Three reasons, in order of weight:
 
-Three caveats on reading this as a substitute for the LIF row:
-
-1. **A small model passes (a) more easily.** The delay-free network's temporal state is ~1.05 µJ, *the
-   same absolute amount* as plain LIF's 1.41 µJ at T=100 (both are just the neuron state plus a
-   2-slot window). It clears 10 % only because its total energy is 3.20 µJ rather than LIF's 6.29.
-2. **It has no delay table, so its "temporal state" is a different quantity.** For delay, 98 % of the
+1. **Accuracy disqualifies it.** Pass/fail on (a) presupposes the model is a viable alternative on the
+   task. A 49.81 % network is not, so its 32.9 % share says nothing about whether temporal state
+   matters in a network that works.
+2. **A small model passes (a) more easily.** Its temporal state is ~1.05 µJ, *the same absolute amount*
+   as plain LIF's 1.41 µJ at T=100 (both are the neuron state plus a 2-slot window). It clears 10 %
+   only because its total energy is 3.20 µJ rather than LIF's 6.29.
+3. **It has no delay table, so its "temporal state" is a different quantity.** For delay, 98 % of the
    temporal state is the delay table (§5.3); for no-delay there is no table at all.
-3. **It cannot replace LIF's role, because it is not a "cheap but SOP-heavy" model.** Plain LIF at
-   T=100/2×2 has the highest SOP (4.56 M) and the lowest energy (6.29 µJ) — that inversion is what
-   criterion (b) needs. See §6.2 for what happens to (b) when no-delay takes its place.
 
-**What it does show is the boundary of the criterion**: (a) measures the *share*, not the *amount* of
-temporal state, and a network that removes the dominant temporal-state term altogether can satisfy
-the share test purely by shrinking its denominator.
+**What the row does show is the boundary of criterion (a)**: it measures the *share*, not the *amount*,
+of temporal state, and a network that removes the dominant temporal-state term can satisfy the share
+test purely by shrinking its denominator — including a network that cannot do the task.
 
 ### 6.2 (b) Ranking flips
 
@@ -610,10 +613,11 @@ SOP-only ranking converges on the full-model ranking. This is a limitation of th
 not of the models — and it is the honest result for a hardware design in which weights are
 re-read on every operation.
 
-#### Where the delay-free reference would sit
+#### Putting the delay-free network in the LIF slot
 
-**TASK 4's brief is to put the delay-free network in the control slot that plain LIF occupies.
-Reported as a supplement; the headline 6/9 and 0/9 above still use LIF.**
+**TASK 4's brief is to use the delay-free network as the control instead of plain LIF. The numbers are
+reported for completeness, but they cannot support an inference, for the same reason as in §6.1: the
+delay-free network only reaches 49.81 % against the delay model's 84.30 %.**
 
 Model set becomes **{delay, no-delay, MC}**, T=100, all three meshes:
 
@@ -623,16 +627,20 @@ Model set becomes **{delay, no-delay, MC}**, T=100, all three meshes:
 | 4×4 | same | ND(3.70) < DL(8.26) < MC(20.21) | ND(25.23) < DL(43.58) < MC(72.61) | ❌ | ❌ |
 | 8×8 | same | ND(7.55) < DL(8.80) < MC(27.68) | ND(29.08) < DL(44.12) < MC(80.08) | ❌ | ❌ |
 
-**0/3 — the substitution removes the flip entirely.**
+**0/3 — no flip anywhere. This is not evidence either way: a control that cannot do the task cannot
+falsify a claim about models that can.**
 
-**Why: no-delay is not a "cheap but SOP-heavy" model.** At T=100/2×2 plain LIF has the *highest* SOP
-(4.56 M) and the *lowest* energy (6.29 µJ); that inversion is exactly what criterion (b) detects. The
-delay-free network instead ranks first on SOP, energy and storage simultaneously, so every ranking
-agrees with every other. **A substitute is only informative if it occupies a different corner of the
-SOP/energy plane than the model it replaces, and no-delay does not.**
+Two mechanical reasons the flip disappears, recorded so the table is not misread:
 
-**If no-delay is simply added to the original three (rather than replacing LIF), the counts do not
-change either:**
+1. **Accuracy disqualifies it first.** Criterion (b) asks whether SOP-only ranking misses the full
+   energy ranking *for models that solve the task*. A 49.81 % network is not in that set.
+2. **Even ignoring accuracy, no-delay is not a "cheap but SOP-heavy" model.** At T=100/2×2 plain LIF
+   has the *highest* SOP (4.56 M) and the *lowest* energy (6.29 µJ) — that inversion is what (b)
+   detects. The delay-free network ranks first on SOP, energy and storage at once, so all rankings
+   agree. **A substitute is only informative if it sits in a different corner of the SOP/energy plane
+   than the model it replaces; no-delay does not.**
+
+**For completeness, adding no-delay to the original three rather than replacing LIF changes nothing:**
 
 | | SOP order | energy order (2×2, resident) |
 |---|---|---|
@@ -640,7 +648,7 @@ change either:**
 | **with no-delay added** | **ND < DL < LIF < MC** | **ND < LIF < DL < MC** |
 
 ND lands first in both, so **ND vs DL agrees and DL vs LIF still flips** — every pairwise comparison
-among the original three is untouched.
+among the original three is untouched, and the 6/9 headline stands.
 
 ### 6.3 Summary
 
