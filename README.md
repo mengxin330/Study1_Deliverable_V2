@@ -559,7 +559,10 @@ Substituting it for LIF at T=100, across all three mesh sizes:
 
 1. **Accuracy disqualifies it.** Pass/fail on (a) presupposes the model is a viable alternative on the
    task. A 49.81 % network is not, so its 32.9 % share says nothing about whether temporal state
-   matters in a network that works.
+   matters in a network that works. **The low accuracy is not a tuning shortfall — the network cannot
+   be trained without delays.** DelRec §A.4 (*"Recurrent delays mitigate the risk of exploding
+   gradients"*) attributes exactly this failure to the absence of temporal skip connections; §7.5
+   documents the collapse in our runs (train 13 % / val 24 % with BatchNorm, 49.81 % without).
 2. **A small model passes (a) more easily.** Its temporal state is ~1.05 µJ, *the same absolute amount*
    as plain LIF's 1.41 µJ at T=100 (both are the neuron state plus a 2-slot window). It clears 10 %
    only because its total energy is 3.20 µJ rather than LIF's 6.29.
@@ -633,7 +636,8 @@ falsify a claim about models that can.**
 Two mechanical reasons the flip disappears, recorded so the table is not misread:
 
 1. **Accuracy disqualifies it first.** Criterion (b) asks whether SOP-only ranking misses the full
-   energy ranking *for models that solve the task*. A 49.81 % network is not in that set.
+   energy ranking *for models that solve the task*. A 49.81 % network is not in that set — it fails
+   to reach that level because the recurrence is untrainable without delays (§7.5, DelRec §A.4).
 2. **Even ignoring accuracy, no-delay is not a "cheap but SOP-heavy" model.** At T=100/2×2 plain LIF
    has the *highest* SOP (4.56 M) and the *lowest* energy (6.29 µJ) — that inversion is what (b)
    detects. The delay-free network ranks first on SOP, energy and storage at once, so all rankings
