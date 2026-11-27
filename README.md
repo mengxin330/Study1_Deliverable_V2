@@ -649,67 +649,67 @@ weight bits and their leakage still exist when resident (§5.3), they are report
 
 ### 6.1 (a) Temporal-state share ≥ 10%
 
-**Two tables, one per delay-table placement.** LIF and MC shares do not depend on where the
-weights live, so they appear once; only the delay share moves, because its total carries the
-weight read. **(a) is therefore split per weight placement.**
+**Three weight configurations per table**: resident, in SRAM with reuse $R=1$, and in SRAM
+with $R=4$. **$R$ divides the weight read only** — the delay access is unchanged (Part B1).
+The delay share therefore moves with the weight configuration while the delay access does not.
 
 **(a) — delay table resident**
 
-| T | Mesh | delay (W resident) | delay (W in SRAM) | LIF | MC | (a) W resident | (a) W in SRAM |
-|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 19.0% | 2.0% | 17.1% | 56.1% | ✅ | ✅ |
-| 50 | 4×4 | 15.8% | 1.7% | 13.6% | 49.6% | ✅ | ✅ |
-| 50 | 8×8 | 11.0% | 1.6% | 7.3% | 34.5% | ✅ | ❌ |
-| 100 | 2×2 | 25.4% | 3.0% | 25.0% | 63.1% | ✅ | ✅ |
-| 100 | 4×4 | 21.7% | 2.6% | 20.4% | 57.7% | ✅ | ✅ |
-| 100 | 8×8 | 13.7% | 2.4% | 10.3% | 41.0% | ✅ | ✅ |
-| 140 | 2×2 | 29.0% | 3.6% | 27.8% | 65.8% | ✅ | ✅ |
-| 140 | 4×4 | 25.3% | 3.3% | 22.6% | 60.6% | ✅ | ✅ |
-| 140 | 8×8 | 15.9% | 3.0% | 10.8% | 43.3% | ✅ | ✅ |
+| T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | 19.0% | 2.0% | 6.1% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
+| 50 | 4×4 | 15.8% | 1.7% | 5.1% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
+| 50 | 8×8 | 11.0% | 1.6% | 4.4% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ❌ | ✅ |
+| 100 | 2×2 | 25.4% | 3.0% | 8.8% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
+| 100 | 4×4 | 21.7% | 2.6% | 7.8% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
+| 100 | 8×8 | 13.7% | 2.4% | 6.3% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
+| 140 | 2×2 | 29.0% | 3.6% | 10.5% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
+| 140 | 4×4 | 25.3% | 3.3% | 9.5% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
+| 140 | 8×8 | 15.9% | 3.0% | 7.7% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
 
 **(a) — delay table in SRAM**
 
-| T | Mesh | delay (W resident) | delay (W in SRAM) | LIF | MC | (a) W resident | (a) W in SRAM |
-|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 72.3% | 18.5% | 17.1% | 56.1% | ✅ | ✅ |
-| 50 | 4×4 | 66.4% | 15.4% | 13.6% | 49.6% | ✅ | ✅ |
-| 50 | 8×8 | 56.1% | 14.2% | 7.3% | 34.5% | ✅ | ✅ |
-| 100 | 2×2 | 77.6% | 23.7% | 25.0% | 63.1% | ✅ | ✅ |
-| 100 | 4×4 | 73.0% | 20.9% | 20.4% | 57.7% | ✅ | ✅ |
-| 100 | 8×8 | 60.5% | 19.2% | 10.3% | 41.0% | ✅ | ✅ |
-| 140 | 2×2 | 79.6% | 26.3% | 27.8% | 65.8% | ✅ | ✅ |
-| 140 | 4×4 | 75.5% | 23.7% | 22.6% | 60.6% | ✅ | ✅ |
-| 140 | 8×8 | 63.0% | 21.8% | 10.8% | 43.3% | ✅ | ✅ |
+| T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | 72.3% | 18.5% | 41.9% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
+| 50 | 4×4 | 66.4% | 15.4% | 36.4% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
+| 50 | 8×8 | 56.1% | 14.2% | 32.2% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ✅ | ✅ |
+| 100 | 2×2 | 77.6% | 23.7% | 49.5% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
+| 100 | 4×4 | 73.0% | 20.9% | 45.0% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
+| 100 | 8×8 | 60.5% | 19.2% | 39.3% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
+| 140 | 2×2 | 79.6% | 26.3% | 52.8% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
+| 140 | 4×4 | 75.5% | 23.7% | 48.8% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
+| 140 | 8×8 | 63.0% | 21.8% | 42.7% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
 
 #### Upper bound: every synaptic operation (§8.7)
 
 **(a) — delay table resident**
 
-| T | Mesh | delay (W resident) | delay (W in SRAM) | LIF | MC | (a) W resident | (a) W in SRAM |
-|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 19.0% | 2.0% | 17.1% | 56.1% | ✅ | ✅ |
-| 50 | 4×4 | 15.8% | 1.7% | 13.6% | 49.6% | ✅ | ✅ |
-| 50 | 8×8 | 11.0% | 1.6% | 7.3% | 34.5% | ✅ | ❌ |
-| 100 | 2×2 | 25.4% | 3.0% | 25.0% | 63.1% | ✅ | ✅ |
-| 100 | 4×4 | 21.7% | 2.6% | 20.4% | 57.7% | ✅ | ✅ |
-| 100 | 8×8 | 13.7% | 2.4% | 10.3% | 41.0% | ✅ | ✅ |
-| 140 | 2×2 | 29.0% | 3.6% | 27.8% | 65.8% | ✅ | ✅ |
-| 140 | 4×4 | 25.3% | 3.3% | 22.6% | 60.6% | ✅ | ✅ |
-| 140 | 8×8 | 15.9% | 3.0% | 10.8% | 43.3% | ✅ | ✅ |
+| T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | 19.0% | 2.0% | 6.1% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
+| 50 | 4×4 | 15.8% | 1.7% | 5.1% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
+| 50 | 8×8 | 11.0% | 1.6% | 4.4% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ❌ | ✅ |
+| 100 | 2×2 | 25.4% | 3.0% | 8.8% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
+| 100 | 4×4 | 21.7% | 2.6% | 7.8% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
+| 100 | 8×8 | 13.7% | 2.4% | 6.3% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
+| 140 | 2×2 | 29.0% | 3.6% | 10.5% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
+| 140 | 4×4 | 25.3% | 3.3% | 9.5% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
+| 140 | 8×8 | 15.9% | 3.0% | 7.7% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
 
 **(a) — delay table in SRAM**
 
-| T | Mesh | delay (W resident) | delay (W in SRAM) | LIF | MC | (a) W resident | (a) W in SRAM |
-|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 91.9% | 49.7% | 17.1% | 56.1% | ✅ | ✅ |
-| 50 | 4×4 | 91.0% | 48.4% | 13.6% | 49.6% | ✅ | ✅ |
-| 50 | 8×8 | 87.3% | 47.1% | 7.3% | 34.5% | ✅ | ✅ |
-| 100 | 2×2 | 91.7% | 49.9% | 25.0% | 63.1% | ✅ | ✅ |
-| 100 | 4×4 | 90.6% | 48.5% | 20.4% | 57.7% | ✅ | ✅ |
-| 100 | 8×8 | 84.9% | 46.6% | 10.3% | 41.0% | ✅ | ✅ |
-| 140 | 2×2 | 91.6% | 50.0% | 27.8% | 65.8% | ✅ | ✅ |
-| 140 | 4×4 | 90.4% | 48.6% | 22.6% | 60.6% | ✅ | ✅ |
-| 140 | 8×8 | 84.2% | 46.5% | 10.8% | 43.3% | ✅ | ✅ |
+| T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | 91.9% | 49.7% | 75.8% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
+| 50 | 4×4 | 91.0% | 48.4% | 74.6% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
+| 50 | 8×8 | 87.3% | 47.1% | 72.0% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ✅ | ✅ |
+| 100 | 2×2 | 91.7% | 49.9% | 75.8% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
+| 100 | 4×4 | 90.6% | 48.5% | 74.5% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
+| 100 | 8×8 | 84.9% | 46.6% | 70.4% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
+| 140 | 2×2 | 91.6% | 50.0% | 75.9% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
+| 140 | 4×4 | 90.4% | 48.6% | 74.4% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
+| 140 | 8×8 | 84.2% | 46.5% | 70.0% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
 
 
 #### Putting the delay-free network in the LIF slot
@@ -752,67 +752,67 @@ test purely by shrinking its denominator — including a network that cannot do 
 
 ### 6.2 (b) Ranking flips
 
-**Two tables, one per delay-table placement.** The weight placement changes the energy order
-because the weight read is proportional to SOP — the one quantity an SOP-only estimate already
-sees — so it pushes the order back towards SOP. **(b) is split per weight placement.**
+**Three weight configurations per table.** The weight read is proportional to SOP — the one
+quantity an SOP-only estimate already sees — so raising $R$ shrinks it and lets the energy
+order depart from the SOP order.
 
 **(b) — delay table resident**
 
-| T | Mesh | energy order (W resident) | energy order (W in SRAM) | SOP ≠ E (W resident) | SOP ≠ E (W in SRAM) |
-|---|---|---|---|---|---|
-| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
+|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
 
 **(b) — delay table in SRAM**
 
-| T | Mesh | energy order (W resident) | energy order (W in SRAM) | SOP ≠ E (W resident) | SOP ≠ E (W in SRAM) |
-|---|---|---|---|---|---|
-| 50 | 2×2 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 50 | 4×4 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 2×2 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 100 | 4×4 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 100 | 8×8 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 140 | 2×2 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 140 | 4×4 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
-| 140 | 8×8 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
+|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 50 | 4×4 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 2×2 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 100 | 4×4 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 100 | 8×8 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 140 | 2×2 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 140 | 4×4 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 140 | 8×8 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
 
 #### Upper bound: every synaptic operation (§8.7)
 
 **(b) — delay table resident**
 
-| T | Mesh | energy order (W resident) | energy order (W in SRAM) | SOP ≠ E (W resident) | SOP ≠ E (W in SRAM) |
-|---|---|---|---|---|---|
-| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
-| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
+|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
+| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
 
 **(b) — delay table in SRAM**
 
-| T | Mesh | energy order (W resident) | energy order (W in SRAM) | SOP ≠ E (W resident) | SOP ≠ E (W in SRAM) |
-|---|---|---|---|---|---|
-| 50 | 2×2 | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ |
-| 50 | 4×4 | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ |
-| 50 | 8×8 | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ |
-| 100 | 2×2 | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ |
-| 100 | 4×4 | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ |
-| 100 | 8×8 | LIF < MC < DL | LIF < DL < MC | ✅ | ✅ |
-| 140 | 2×2 | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ |
-| 140 | 4×4 | LIF < MC < DL | LIF < DL < MC | ✅ | ✅ |
-| 140 | 8×8 | LIF < MC < DL | LIF < DL < MC | ✅ | ✅ |
+| T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
+|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 50 | 4×4 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 50 | 8×8 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 100 | 2×2 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 100 | 4×4 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 100 | 8×8 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
+| 140 | 2×2 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 140 | 4×4 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
+| 140 | 8×8 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
 
 
 ### 6.3 Summary
