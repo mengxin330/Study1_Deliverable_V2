@@ -489,6 +489,82 @@ upper bound that charges every synaptic operation.
 
 **The delay table is stored at 6 bits per value**, not 32 (§5.3).
 
+#### Side by side: the two weight placements
+
+**Same six placements as the panels below, regrouped** so the weight decision can be read off
+one table at a time. Each table holds the delay table fixed and varies only where the weights
+live; the ratio column is the factor the weight read adds.
+
+**Delay table resident** — weights resident vs weights in SRAM
+
+| T | Mesh | Model | weights resident | weights in SRAM | ratio |
+|---|---|---|---|---|---|
+| 50 | 2×2 | delay | 3.346 | 31.827 | 9.51× |
+|  |  | lif | 4.969 | 47.834 | 9.63× |
+|  |  | mc | 12.287 | 56.589 | 4.61× |
+| 50 | 4×4 | delay | 3.437 | 31.917 | 9.29× |
+|  |  | lif | 5.454 | 48.320 | 8.86× |
+|  |  | mc | 12.002 | 56.303 | 4.69× |
+| 50 | 8×8 | delay | 4.744 | 33.224 | 7.00× |
+|  |  | lif | 9.761 | 52.627 | 5.39× |
+|  |  | mc | 16.562 | 60.863 | 3.67× |
+| 100 | 2×2 | delay | 4.660 | 39.983 | 8.58× |
+|  |  | lif | 6.285 | 53.338 | 8.49× |
+|  |  | mc | 20.304 | 72.703 | 3.58× |
+| 100 | 4×4 | delay | 4.897 | 40.220 | 8.21× |
+|  |  | lif | 7.086 | 54.140 | 7.64× |
+|  |  | mc | 20.209 | 72.608 | 3.59× |
+| 100 | 8×8 | delay | 7.536 | 42.859 | 5.69× |
+|  |  | lif | 13.726 | 60.779 | 4.43× |
+|  |  | mc | 27.685 | 80.084 | 2.89× |
+| 140 | 2×2 | delay | 5.531 | 44.632 | 8.07× |
+|  |  | lif | 7.770 | 62.631 | 8.06× |
+|  |  | mc | 26.662 | 85.001 | 3.19× |
+| 140 | 4×4 | delay | 5.847 | 44.947 | 7.69× |
+|  |  | lif | 8.928 | 63.789 | 7.14× |
+|  |  | mc | 26.752 | 85.091 | 3.18× |
+| 140 | 8×8 | delay | 9.095 | 48.195 | 5.30× |
+|  |  | lif | 18.315 | 73.175 | 4.00× |
+|  |  | mc | 36.691 | 95.030 | 2.59× |
+
+**Delay table in SRAM** — weights resident vs weights in SRAM
+
+| T | Mesh | Model | weights resident | weights in SRAM | ratio |
+|---|---|---|---|---|---|
+| 50 | 2×2 | delay | 9.797 | 38.277 | 3.91× |
+|  |  | lif | 4.969 | 47.834 | 9.63× |
+|  |  | mc | 12.287 | 56.589 | 4.61× |
+| 50 | 4×4 | delay | 8.627 | 37.107 | 4.30× |
+|  |  | lif | 5.454 | 48.320 | 8.86× |
+|  |  | mc | 12.002 | 56.303 | 4.69× |
+| 50 | 8×8 | delay | 9.619 | 38.099 | 3.96× |
+|  |  | lif | 9.761 | 52.627 | 5.39× |
+|  |  | mc | 16.562 | 60.863 | 3.67× |
+| 100 | 2×2 | delay | 15.534 | 50.857 | 3.27× |
+|  |  | lif | 6.285 | 53.338 | 8.49× |
+|  |  | mc | 20.304 | 72.703 | 3.58× |
+| 100 | 4×4 | delay | 14.199 | 49.522 | 3.49× |
+|  |  | lif | 7.086 | 54.140 | 7.64× |
+|  |  | mc | 20.209 | 72.608 | 3.59× |
+| 100 | 8×8 | delay | 16.444 | 51.767 | 3.15× |
+|  |  | lif | 13.726 | 60.779 | 4.43× |
+|  |  | mc | 27.685 | 80.084 | 2.89× |
+| 140 | 2×2 | delay | 19.272 | 58.373 | 3.03× |
+|  |  | lif | 7.770 | 62.631 | 8.06× |
+|  |  | mc | 26.662 | 85.001 | 3.19× |
+| 140 | 4×4 | delay | 17.841 | 56.941 | 3.19× |
+|  |  | lif | 8.928 | 63.789 | 7.14× |
+|  |  | mc | 26.752 | 85.091 | 3.18× |
+| 140 | 8×8 | delay | 20.652 | 59.753 | 2.89× |
+|  |  | lif | 18.315 | 73.175 | 4.00× |
+|  |  | mc | 36.691 | 95.030 | 2.59× |
+
+**The weight read is the same `sop × 10 pJ` for all three models**, so it multiplies every
+row by roughly the same factor (1.2–9.6×; larger at 2×2 where `t_inf` makes leakage small
+relative to the read). **It never changes the ranking within a table** — LIF stays cheapest
+and MC most expensive — but it does change how large the delay model's temporal-state share
+looks, because that share is a ratio with this term in the denominator (§6.1).
+
 #### Weights resident, delay table resident
 
 | T | Mesh | Model | synaptic | neuron | state | delay access | leakage | comm | w_read | **total** |
@@ -670,6 +746,44 @@ on where the weights live — only on where the delay table lives.
 
 **Six placements: four combinations of weight / delay-table location, plus two weight-reuse
 R = 4 rows** (Part B item 1; R divides the weight read only, never the delay access).
+
+#### Side by side: the two weight placements
+
+**Six placements regrouped** so the weight decision reads off one table at a time. Each
+table fixes where the delay table lives and varies only the weights. The share never
+depends on the weight placement (ts excludes the weight read), so the two halves of each
+row are equal — the table is here to make that checkable at a glance.
+
+**Delay table resident — weights resident vs weights in SRAM**
+
+| T | Mesh | delay: W res | delay: W SRAM | LIF: W res | LIF: W SRAM | MC: W res | MC: W SRAM | (a) |
+|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | 19.0% | 2.0% | 17.1% | 1.8% | 56.1% | 12.2% | ✅ |
+| 50 | 4×4 | 15.8% | 1.7% | 13.6% | 1.5% | 49.6% | 10.6% | ✅ |
+| 50 | 8×8 | 11.0% | 1.6% | 7.3% | 1.4% | 34.5% | 9.4% | ✅ |
+| 100 | 2×2 | 25.4% | 3.0% | 25.0% | 2.9% | 63.1% | 17.6% | ✅ |
+| 100 | 4×4 | 21.7% | 2.6% | 20.4% | 2.7% | 57.7% | 16.0% | ✅ |
+| 100 | 8×8 | 13.7% | 2.4% | 10.3% | 2.3% | 41.0% | 14.2% | ✅ |
+| 140 | 2×2 | 29.0% | 3.6% | 27.8% | 3.4% | 65.8% | 20.6% | ✅ |
+| 140 | 4×4 | 25.3% | 3.3% | 22.6% | 3.2% | 60.6% | 19.1% | ✅ |
+| 140 | 8×8 | 15.9% | 3.0% | 10.8% | 2.7% | 43.3% | 16.7% | ✅ |
+
+**Delay table in SRAM — weights resident vs weights in SRAM**
+
+| T | Mesh | delay: W res | delay: W SRAM | LIF: W res | LIF: W SRAM | MC: W res | MC: W SRAM | (a) |
+|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | 72.3% | 18.5% | 17.1% | 1.8% | 56.1% | 12.2% | ✅ |
+| 50 | 4×4 | 66.4% | 15.4% | 13.6% | 1.5% | 49.6% | 10.6% | ✅ |
+| 50 | 8×8 | 56.1% | 14.2% | 7.3% | 1.4% | 34.5% | 9.4% | ✅ |
+| 100 | 2×2 | 77.6% | 23.7% | 25.0% | 2.9% | 63.1% | 17.6% | ✅ |
+| 100 | 4×4 | 73.0% | 20.9% | 20.4% | 2.7% | 57.7% | 16.0% | ✅ |
+| 100 | 8×8 | 60.5% | 19.2% | 10.3% | 2.3% | 41.0% | 14.2% | ✅ |
+| 140 | 2×2 | 79.6% | 26.3% | 27.8% | 3.4% | 65.8% | 20.6% | ✅ |
+| 140 | 4×4 | 75.5% | 23.7% | 22.6% | 3.2% | 60.6% | 19.1% | ✅ |
+| 140 | 8×8 | 63.0% | 21.8% | 10.8% | 2.7% | 43.3% | 16.7% | ✅ |
+
+**Confirmed: the two halves are identical in every row** — which is why §6.3 draws no
+distinction by weight placement for (a).
 
 #### Weights resident, delay table resident
 
@@ -919,6 +1033,40 @@ test purely by shrinking its denominator — including a network that cannot do 
 The delay model has the lowest SOP of the three in every configuration, so a flip requires that
 its energy is *not* also the lowest. **Whether that happens depends entirely on where the delay
 table lives**, because only the table adds an energy term that is not proportional to SOP.
+
+#### Side by side: the two weight placements
+
+**Unlike (a), the weight placement does matter here**: putting the weights in SRAM adds a
+term proportional to SOP, which is the one thing the SOP-only estimate already sees, so it
+pushes the energy order back towards the SOP order.
+
+**Delay table resident — weights resident vs weights in SRAM**
+
+| T | Mesh | energy order: W res | energy order: W SRAM | SOP ≠ E: W res | SOP ≠ E: W SRAM |
+|---|---|---|---|---|---|
+| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+
+**Delay table in SRAM — weights resident vs weights in SRAM**
+
+| T | Mesh | energy order: W res | energy order: W SRAM | SOP ≠ E: W res | SOP ≠ E: W SRAM |
+|---|---|---|---|---|---|
+| 50 | 2×2 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 50 | 4×4 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ |
+| 100 | 2×2 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 100 | 4×4 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 100 | 8×8 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 140 | 2×2 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 140 | 4×4 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
+| 140 | 8×8 | LIF < DL < MC | DL < LIF < MC | ✅ | ❌ |
 
 #### Weights resident, delay table resident
 
