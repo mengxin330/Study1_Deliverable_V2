@@ -649,9 +649,15 @@ zero, no table is stored, so there is nothing to leak either (`weights leak` = n
 
 **`weights leak` is reported separately and does not enter either total.**
 
-**Two regimes side by side.** `total (resident)` assumes the weights are spatially expanded, so a synaptic operation costs only the AC arithmetic (§4.4). `total (SRAM)` charges every synaptic operation one 10 pJ SRAM read of its 32-bit weight, $\text{w\_read} = \text{SOP} \times E_{access}$; this is an **upper bound** (weight reuse = 1, see §8.6). Criterion (a) under both regimes is tabulated in §6.1.
+**Four panels, not two regimes.** The weights and the delay table can each be resident or in
+SRAM, so there are four placements; every column shown is what enters the total, which is why
+the columns add up to 	otal in each panel. §6.3 reports the criteria per placement.
 
 **`synaptic` = input-layer SOP × E_AC + hidden SOP × E_AC + neuron ops × E_MAC.**
+
+**`delay access` is non-zero only for the delay model** (LIF and MC have no table) and only
+when the table is in SRAM. **`w_read` is non-zero only when the weights are in SRAM**; the
+weight bits and their leakage still exist when resident (§5.3), they are reported apart.
 
 ## 6. Criteria results
 
@@ -763,23 +769,111 @@ R = 4 rows** (Part B item 1; R divides the weight read only, never the delay acc
 
 #### Upper bound: delay access charged on every synaptic operation (§8.7)
 
-The same six placements when the delay access covers all synaptic operations. Only the delay
-column moves; LIF and MC have no delay table and their shares are identical to the panels above.
+The same six placements when the delay access covers **all 3,532,306 synaptic operations** at
+T=100 instead of the 877,744 recurrent ones. **Only the delay column moves** — LIF and MC have no
+delay table, so their shares are identical to the panels above; they are repeated here so the two
+blocks can be compared cell by cell.
 
-| Placement | delay share range (2×2, T=100) | (a) |
-|---|---|---|
-| Weights resident, delay table resident | 25.4% | 9/9 |
-| Weights resident, delay table in SRAM | 91.7% | 9/9 |
-| Weights in SRAM (R=1), delay table resident | 3.0% | 8/9 |
-| Weights in SRAM (R=1), delay table in SRAM | 49.9% | 9/9 |
-| Weights in SRAM (R=4), delay table resident | 8.8% | 9/9 |
-| Weights in SRAM (R=4), delay table in SRAM | 75.8% | 9/9 |
+**Weights resident, delay table resident**
 
-With the larger delay access the delay model's share rises whenever the table is in SRAM
-(91.7 % at 2×2 instead of 77.6 %) and falls by the same amount when it is resident. **The only
-configuration that fails is `W SRAM R=1, D res` at T=50/8×8** (1.6 %), where a 60 µJ
-weight-read total leaves the delay model's 1 µJ of temporal state below the threshold. Every
-other placement holds 9/9.
+| T | Mesh | delay | LIF | MC | (a) |
+|---|---|---|---|---|---|
+| 50 | 2×2 | 19.0% | 17.1% | 56.1% | ✅ |
+| 50 | 4×4 | 15.8% | 13.6% | 49.6% | ✅ |
+| 50 | 8×8 | 11.0% | 7.3% | 34.5% | ✅ |
+| 100 | 2×2 | 25.4% | 25.0% | 63.1% | ✅ |
+| 100 | 4×4 | 21.7% | 20.4% | 57.7% | ✅ |
+| 100 | 8×8 | 13.7% | 10.3% | 41.0% | ✅ |
+| 140 | 2×2 | 29.0% | 27.8% | 65.8% | ✅ |
+| 140 | 4×4 | 25.3% | 22.6% | 60.6% | ✅ |
+| 140 | 8×8 | 15.9% | 10.8% | 43.3% | ✅ |
+
+**(a) holds in 9/9 configurations.**
+
+**Weights resident, delay table in SRAM**
+
+| T | Mesh | delay | LIF | MC | (a) |
+|---|---|---|---|---|---|
+| 50 | 2×2 | 91.9% | 17.1% | 56.1% | ✅ |
+| 50 | 4×4 | 91.0% | 13.6% | 49.6% | ✅ |
+| 50 | 8×8 | 87.3% | 7.3% | 34.5% | ✅ |
+| 100 | 2×2 | 91.7% | 25.0% | 63.1% | ✅ |
+| 100 | 4×4 | 90.6% | 20.4% | 57.7% | ✅ |
+| 100 | 8×8 | 84.9% | 10.3% | 41.0% | ✅ |
+| 140 | 2×2 | 91.6% | 27.8% | 65.8% | ✅ |
+| 140 | 4×4 | 90.4% | 22.6% | 60.6% | ✅ |
+| 140 | 8×8 | 84.2% | 10.8% | 43.3% | ✅ |
+
+**(a) holds in 9/9 configurations.**
+
+**Weights in SRAM (R=1), delay table resident**
+
+| T | Mesh | delay | LIF | MC | (a) |
+|---|---|---|---|---|---|
+| 50 | 2×2 | 2.0% | 1.8% | 12.2% | ✅ |
+| 50 | 4×4 | 1.7% | 1.5% | 10.6% | ✅ |
+| 50 | 8×8 | 1.6% | 1.4% | 9.4% | ❌ |
+| 100 | 2×2 | 3.0% | 2.9% | 17.6% | ✅ |
+| 100 | 4×4 | 2.6% | 2.7% | 16.0% | ✅ |
+| 100 | 8×8 | 2.4% | 2.3% | 14.2% | ✅ |
+| 140 | 2×2 | 3.6% | 3.4% | 20.6% | ✅ |
+| 140 | 4×4 | 3.3% | 3.2% | 19.1% | ✅ |
+| 140 | 8×8 | 3.0% | 2.7% | 16.7% | ✅ |
+
+**(a) holds in 8/9 configurations.**
+
+**Weights in SRAM (R=1), delay table in SRAM**
+
+| T | Mesh | delay | LIF | MC | (a) |
+|---|---|---|---|---|---|
+| 50 | 2×2 | 49.7% | 1.8% | 12.2% | ✅ |
+| 50 | 4×4 | 48.4% | 1.5% | 10.6% | ✅ |
+| 50 | 8×8 | 47.1% | 1.4% | 9.4% | ✅ |
+| 100 | 2×2 | 49.9% | 2.9% | 17.6% | ✅ |
+| 100 | 4×4 | 48.5% | 2.7% | 16.0% | ✅ |
+| 100 | 8×8 | 46.6% | 2.3% | 14.2% | ✅ |
+| 140 | 2×2 | 50.0% | 3.4% | 20.6% | ✅ |
+| 140 | 4×4 | 48.6% | 3.2% | 19.1% | ✅ |
+| 140 | 8×8 | 46.5% | 2.7% | 16.7% | ✅ |
+
+**(a) holds in 9/9 configurations.**
+
+**Weights in SRAM (R=4), delay table resident**
+
+| T | Mesh | delay | LIF | MC | (a) |
+|---|---|---|---|---|---|
+| 50 | 2×2 | 6.1% | 3.2% | 19.6% | ✅ |
+| 50 | 4×4 | 5.1% | 2.7% | 17.0% | ✅ |
+| 50 | 8×8 | 4.4% | 2.3% | 14.5% | ✅ |
+| 100 | 2×2 | 8.8% | 5.8% | 27.7% | ✅ |
+| 100 | 4×4 | 7.8% | 5.2% | 25.3% | ✅ |
+| 100 | 8×8 | 6.3% | 4.1% | 21.2% | ✅ |
+| 140 | 2×2 | 10.5% | 6.5% | 31.5% | ✅ |
+| 140 | 4×4 | 9.5% | 5.9% | 29.1% | ✅ |
+| 140 | 8×8 | 7.7% | 4.5% | 24.2% | ✅ |
+
+**(a) holds in 9/9 configurations.**
+
+**Weights in SRAM (R=4), delay table in SRAM**
+
+| T | Mesh | delay | LIF | MC | (a) |
+|---|---|---|---|---|---|
+| 50 | 2×2 | 75.8% | 3.2% | 19.6% | ✅ |
+| 50 | 4×4 | 74.6% | 2.7% | 17.0% | ✅ |
+| 50 | 8×8 | 72.0% | 2.3% | 14.5% | ✅ |
+| 100 | 2×2 | 75.8% | 5.8% | 27.7% | ✅ |
+| 100 | 4×4 | 74.5% | 5.2% | 25.3% | ✅ |
+| 100 | 8×8 | 70.4% | 4.1% | 21.2% | ✅ |
+| 140 | 2×2 | 75.9% | 6.5% | 31.5% | ✅ |
+| 140 | 4×4 | 74.4% | 5.9% | 29.1% | ✅ |
+| 140 | 8×8 | 70.0% | 4.5% | 24.2% | ✅ |
+
+**(a) holds in 9/9 configurations.**
+
+**With the larger delay access the delay model's share rises whenever the table is in SRAM**
+(91.7 % at 2×2 instead of 77.6 %) and falls when it is resident. **The only configuration that
+fails is `W SRAM R=1, D res` at T=50/8×8** (1.6 %): a 60 µJ weight-read total leaves the delay
+model's ~1 µJ of temporal state below the threshold. Every other placement holds 9/9.
 
 #### Putting the delay-free network in the LIF slot
 
@@ -1125,7 +1219,7 @@ first-order recurrence makes each layer's input strongly autocorrelated across a
 it stays there. **The delay model trains fine with BatchNorm**, because its feedback arrives 10–31
 frames late, which decorrelates it.
 
-#### Why it cannot be trained — the paper predicts this
+#### Why it did not train — the paper predicts this
 
 DelRec states the mechanism explicitly ([arXiv:2509.24852](https://arxiv.org/html/2509.24852v2), §A.4
 *"Recurrent delays mitigate the risk of exploding gradients"*):
@@ -1140,6 +1234,10 @@ and in Fig. 1B:
 
 With all delays zero the feedback path is one step long. That is exactly the configuration the paper
 identifies as ill-conditioned; removing the delays removes the skip connections.
+
+**This explains our runs; it does not prove the architecture unusable.** Recurrent SNNs without
+delays have been trained on SHD above 50 % elsewhere. **What we report is that we could not train
+this network to usable accuracy in the time budget**, not that the network cannot be trained.
 
 #### The evidence that it is not a capacity problem
 
