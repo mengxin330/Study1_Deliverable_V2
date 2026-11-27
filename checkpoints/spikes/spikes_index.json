@@ -1,0 +1,57 @@
+{
+  "format": "NPZ, one file per checkpoint",
+  "fields": {
+    "sample": "int16, index into the SHD test split",
+    "time_step": "int16, frame index 0..T-1",
+    "layer": "int8, 0=hidden1 1=hidden2",
+    "neuron": "int16, index within the layer"
+  },
+  "n_samples": 2264,
+  "files": {
+    "delay_T50": {
+      "events": 6226240,
+      "file": "spikes_delay_T50.npz",
+      "MB": 3.9
+    },
+    "delay_T100": {
+      "events": 12000917,
+      "file": "spikes_delay_T100.npz",
+      "MB": 6.5
+    },
+    "delay_T140": {
+      "events": 15159386,
+      "file": "spikes_delay_T140.npz",
+      "MB": 8.4
+    },
+    "lif_T50": {
+      "events": 19668552,
+      "file": "spikes_lif_T50.npz",
+      "MB": 11.0
+    },
+    "lif_T100": {
+      "events": 31536748,
+      "file": "spikes_lif_T100.npz",
+      "MB": 17.3
+    },
+    "lif_T140": {
+      "events": 44201168,
+      "file": "spikes_lif_T140.npz",
+      "MB": 24.2
+    },
+    "mc_T50": {
+      "events": 21655304,
+      "file": "spikes_mc_T50.npz",
+      "MB": 13.2
+    },
+    "mc_T100": {
+      "events": 35482086,
+      "file": "spikes_mc_T100.npz",
+      "MB": 22.9
+    },
+    "mc_T140": {
+      "events": 47603350,
+      "file": "spikes_mc_T140.npz",
+      "MB": 31.0
+    }
+  }
+}

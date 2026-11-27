@@ -1,14 +1,21 @@
-"""Study 1 deliverable figures: stacked energy breakdown + spike counts overlaid.
+"""Study 1 figures — three plots, produced once per delay-access variant.
 
-Every number is read from the results JSON produced by ``study1_measure.py``,
-so the figures cannot drift away from the reported tables.
+Two variants, identical layout:
 
-White-paper request: "Stacked energy breakdown for the three models, with spike
-counts overlaid."
+    recurrent  delay access charged on the recurrent edges only  (§4.2, main tables)
+    allsop     delay access charged on every synaptic operation  (§8.7, upper bound)
 
-Usage:
-    python plot_study1.py [--json <path>] [--out <dir>]
+Within a variant the placement is chosen with --combo; the default charges the
+delay access and shows it (weights resident, delay table in SRAM), because that
+is the only placement in which the energy ranking can differ from the SOP ranking.
+
+Usage
+    python plot_study1.py                       # both variants, default combo
+    python plot_study1.py --variant recurrent
+    python plot_study1.py --combo w_res_d_res
 """
+from __future__ import annotations
+
 import argparse
 import json
 import pathlib
@@ -19,45 +26,54 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 HERE = pathlib.Path(__file__).resolve().parent
-DEFAULT_JSON = HERE.parent / "results" / "study1_h256_measure_full.json"
-DEFAULT_OUT = HERE.parent / "figs"
+ROOT = HERE.parent
+DEFAULT_JSON = ROOT / "results" / "study1_six_combos.json"
+DEFAULT_OUT = ROOT / "figs"
 
 MODELS = ["delay", "lif", "mc"]
 SHOW = {"delay": "Delay-trained\n(DelRec, 256, per-synapse)",
         "lif": "Plain LIF\n(PMSN d_state=1)",
         "mc": "Multi-compartment\n(PMSN d_state=8)"}
 SHORT = {"delay": "DL", "lif": "LIF", "mc": "MC"}
-# Compact labels for the multi-panel figure, where full names overlap.
 SHORT_FULL = {"delay": "Delay\n(per-synapse)",
               "lif": "LIF\n(d_state=1)",
               "mc": "MC\n(d_state=8)"}
 COLOR = {"delay": "#C44E52", "lif": "#4C72B0", "mc": "#DD8452"}
 
-# JSON energy key -> (figure part name, colour)
-PARTS = [("synaptic",       "synaptic ops (AC)",       "#4C72B0"),
-         ("neuron",         "neuron update",           "#7FA8D6"),
-         ("state",          "state memory",            "#DD8452"),
-         ("delay_storage",  "delay storage",           "#C44E52"),
-         ("leakage_sb",     "leakage (state+buffer)",  "#E8B04B"),
-         ("comm",           "communication",           "#55A868")]
+# stacked-bar components: JSON key -> (label, colour)
+PARTS_SRAM = [("synaptic",     "synaptic ops (AC)",   "#4C72B0"),
+              ("neuron",       "neuron update",       "#7FA8D6"),
+              ("state",        "state memory",        "#DD8452"),
+              ("delay_access", "delay access",        "#C44E52"),
+              ("leak_sb_d_sram", "leakage (state+table)", "#E8B04B"),
+              ("comm",         "communication",       "#55A868")]
+PARTS_RES = [("synaptic",    "synaptic ops (AC)",   "#4C72B0"),
+             ("neuron",      "neuron update",       "#7FA8D6"),
+             ("state",       "state memory",        "#DD8452"),
+             ("delay_access","delay access",        "#C44E52"),
+             ("leak_sb_d_res", "leakage (state+window)", "#E8B04B"),
+             ("comm",        "communication",       "#55A868")]
 
 E_AC = 0.9   # pJ
 
+VARIANTS = {
+    "recurrent": ("recurrent_only",
+                  "delay access on the recurrent edges only (§4.2)"),
+    "allsop": ("all_synaptic",
+               "delay access on every synaptic operation (§8.7 upper bound)"),
+}
 
-def load(path: pathlib.Path):
-    d = json.loads(path.read_text())
-    print(f"source: {path}")
-    print(f"        {d['_meta'].get('n_test_samples', '?')} test samples, "
-          f"{len(d['configs'])} configurations")
 
-    # E[T][mesh][model] -> dict of parts
-    # spikes[T][model], acc[T][model], sop[T][model]
+def load(path: pathlib.Path, variant: str, combo: str):
+    d = json.loads(path.read_text(encoding="utf-8"))
+    src = d["variants"][VARIANTS[variant][0]]
+    print(f"source: {path.name} / {variant} / combo={combo}")
+    print(f"        {len(src['configs'])} configurations")
+
+    parts = PARTS_SRAM if "sram" in combo.split("_d_")[-1] else PARTS_RES
     E, SPK, ACC, SOP = {}, {}, {}, {}
-    for key, cfg in d["configs"].items():
-        T = cfg.get("T")
-        if T is None:
-            T = int(key.split("_")[0].lstrip("T"))
-        mesh = key.split("_")[1]
+    for key, cfg in src["configs"].items():
+        T = cfg["T"]
         ncores = cfg["ncores"]
         E.setdefault(T, {}).setdefault(ncores, {})
         SPK.setdefault(T, {})
@@ -65,22 +81,20 @@ def load(path: pathlib.Path):
         SOP.setdefault(T, {})
         for m in MODELS:
             mm = cfg["models"][m]
-            eu = mm["energy_uJ"]
-            E[T][ncores][m] = {k: eu[k] for k, _, _ in PARTS}
-            E[T][ncores][m]["total"] = eu["total"]
-            E[T][ncores][m]["total_sram"] = eu["total_sram"]
+            c = mm["components_uJ"]
+            E[T][ncores][m] = {k: c[k] for k, _, _ in parts}
+            E[T][ncores][m]["total"] = cfg["combos"][combo]["totals_uJ"][m]
             if m not in SPK[T]:
                 SPK[T][m] = mm.get("spikes", 0) or 0
                 ACC[T][m] = mm["acc_pct"]
-                # SOP is stored as the synaptic energy; recover the count.
-                SOP[T][m] = eu["synaptic"] / E_AC * 1e6
-    return E, SPK, ACC, SOP
+                SOP[T][m] = mm["sop"]
+    return E, SPK, ACC, SOP, parts
 
 
-def panel(ax, E, SPK, T, ncores, title, compact=False, rotate=0):
+def panel(ax, E, SPK, T, ncores, parts, title, compact=False, rotate=0):
     xs = np.arange(len(MODELS))
     bottoms = np.zeros(len(MODELS))
-    for key, lab, col in PARTS:
+    for key, lab, col in parts:
         vals = np.array([E[T][ncores][m][key] for m in MODELS])
         ax.bar(xs, vals, 0.62, bottom=bottoms, label=lab, color=col,
                edgecolor="white", linewidth=0.6)
@@ -105,48 +119,35 @@ def panel(ax, E, SPK, T, ncores, title, compact=False, rotate=0):
         ax.annotate("●", (x, top * 1.155), ha="center", fontsize=9, color="#222222")
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--json", default=str(DEFAULT_JSON))
-    ap.add_argument("--out", default=str(DEFAULT_OUT))
-    a = ap.parse_args()
-
-    jp = pathlib.Path(a.json)
-    if not jp.exists():
-        raise SystemExit(f"results JSON not found: {jp}\n"
-                         f"Run: python study1_measure.py --n -1 --save {jp}")
-    out = pathlib.Path(a.out)
-    out.mkdir(parents=True, exist_ok=True)
-
-    E, SPK, ACC, SOP = load(jp)
-    meshes = sorted({int(c) for c in E[100].keys()})
-    if 4 not in meshes:
-        raise SystemExit(f"expected a 4-core (2x2) configuration, got {meshes}")
+def make(jp: pathlib.Path, out: pathlib.Path, variant: str, combo: str, suffix: str):
+    E, SPK, ACC, SOP, parts = load(jp, variant, combo)
 
     plt.rcParams.update({"font.size": 9, "axes.spines.top": False,
                          "axes.spines.right": False, "figure.dpi": 150})
+    vlabel = VARIANTS[variant][1]
+    combo_note = {
+        "w_res_d_res":   "weights resident, delay table resident",
+        "w_res_d_sram":  "weights resident, delay table in SRAM",
+        "w_sram_r1_d_res":  "weights in SRAM (R=1), delay table resident",
+        "w_sram_r1_d_sram": "weights in SRAM (R=1), delay table in SRAM",
+    }.get(combo, combo)
 
     # ---------- figure 1: main (three resolutions, all 2x2) ----------
-    # White paper TASK 5.1: 2x2 is the main mesh; 4x4 and 8x8 are sensitivity
-    # cases (figure 2).  All three resolutions stay in the main figure because
-    # the time axis is the report's subject.
     fig, axes = plt.subplots(1, 3, figsize=(13.2, 5.0), sharey=False)
     for j, T in enumerate((50, 100, 140)):
-        panel(axes[j], E, SPK, T, 4,
+        panel(axes[j], E, SPK, T, 4, parts,
               f"T = {T}  ({1400/T:.0f} ms/frame)\n2×2 mesh (4 cores)")
     axes[0].set_ylabel("energy / inference (µJ)")
     h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, loc="upper center", ncol=6, fontsize=7.6, frameon=False,
                bbox_to_anchor=(0.5, -0.055))
     fig.suptitle("Study 1 — stacked energy per inference, 2×2 mesh, all three time resolutions\n"
-                 "spike counts overlaid as black dots", fontsize=11, y=1.0)
+                 f"{combo_note}; {vlabel}", fontsize=11, y=1.0)
 
-    # White paper TASK 5.2: every assumption goes in the caption.
     caption = (
         "Assumptions.  (1) FP32, 32-bit weights and state; the white paper's low-precision "
         "regime is not modelled.\n"
-        "(2) Weights resident — a synaptic operation costs only the AC arithmetic (0.9 pJ). "
-        "The SRAM-weight case is in §5.5.\n"
+        f"(2) Placement: {combo_note}. The other three placements are in §5.5.\n"
         "(3) 2×2 mesh (4 cores) is the main configuration; 4×4 and 8×8 appear only as "
         "sensitivity cases (§5.5, fig. 2).\n"
         "(4) Sequential placement, core(i) = floor(i·n_cores/n_total); no optimisation (§8.1).\n"
@@ -154,35 +155,34 @@ def main():
         "same timestep are not merged (§8.2, §8.3).\n"
         "(6) par = 1, i.e. one core's worth of parallelism, no literature basis (§8.4); "
         "P_leak is an 8 MB cache value, so small-SRAM leakage is underestimated.\n"
-        "(7) Delay values are charged to 'delay storage' as 65,536 × 32 bit, not to weights "
-        "(§5.3); the spike window is 256 windows of L−1 slots.\n"
+        f"(7) {vlabel}. The delay table is 65,536 × 6 bit and is charged to delay storage, "
+        "not to weights (§5.3).\n"
         "(8) Checkpoints are the best-validation epoch, not the best-test epoch.\n"
-        "(9) The LIF bar is PMSN d_state=1, not the TASK 4 delay-free network: that network "
-        "reaches only 49.81 % against the delay model's 84.30 % and cannot serve as a baseline "
-        "(§6.1, §7.5). Its energy is tabulated separately in §5.5."
+        "(9) The LIF bar is PMSN d_state=1, not the TASK 4 delay-free network: we could not "
+        "train that network to usable accuracy in the time budget (§6.1, §7.5)."
     )
     fig.text(0.5, -0.22, caption, ha="center", va="top", fontsize=6.5,
              linespacing=1.5, wrap=True,
              bbox=dict(boxstyle="round,pad=0.6", facecolor="#F7F7F7",
                        edgecolor="#CCCCCC", linewidth=0.7))
     fig.tight_layout()
-    fig.savefig(out / "study1_main_2x2_allT.png", bbox_inches="tight")
+    fig.savefig(out / f"study1_main_2x2_allT_{suffix}.png", bbox_inches="tight")
     plt.close(fig)
 
-    # ---------- figure 2: 3 resolutions x 3 meshes (sensitivity) ----------
+    # ---------- figure 2: 3 resolutions x 3 meshes ----------
     fig, axes = plt.subplots(3, 3, figsize=(13.0, 10.6), sharex=False)
     for i, nc in enumerate((4, 16, 64)):
         mesh = {4: "2×2", 16: "4×4", 64: "8×8"}[nc]
         for j, T in enumerate((50, 100, 140)):
-            panel(axes[i, j], E, SPK, T, nc,
+            panel(axes[i, j], E, SPK, T, nc, parts,
                   f"T = {T} ({1400/T:.0f} ms/frame), {mesh} ({nc} cores)", compact=True)
     h, l = axes[0, 0].get_legend_handles_labels()
     fig.legend(h, l, loc="lower center", ncol=6, fontsize=8, frameon=False,
                bbox_to_anchor=(0.5, -0.012))
-    fig.suptitle("Study 1 — energy breakdown across time-step resolutions and mesh sizes",
-                 fontsize=11, y=0.98)
+    fig.suptitle("Study 1 — energy breakdown across time-step resolutions and mesh sizes\n"
+                 f"{combo_note}; {vlabel}", fontsize=11, y=0.98)
     fig.tight_layout(rect=[0, 0.03, 1, 0.96])
-    fig.savefig(out / "study1_grid_resolution_mesh.png", bbox_inches="tight")
+    fig.savefig(out / f"study1_grid_resolution_mesh_{suffix}.png", bbox_inches="tight")
     plt.close(fig)
 
     # ---------- figure 3: ranking by three estimates ----------
@@ -208,16 +208,40 @@ def main():
                      f"spike{'≠' if sp != en else '='}energy   "
                      f"SOP{'≠' if so != en else '='}energy", fontsize=9)
         ax.grid(axis="x", alpha=0.25)
-    fig.suptitle("Simplified estimates mis-rank the three models", fontsize=11, y=1.02)
+    fig.suptitle(f"Simplified estimates vs the full model — {combo_note}\n{vlabel}",
+                 fontsize=11, y=1.04)
     fig.tight_layout()
-    fig.savefig(out / "study1_ranking_flip.png", bbox_inches="tight")
+    fig.savefig(out / f"study1_ranking_flip_{suffix}.png", bbox_inches="tight")
     plt.close(fig)
 
-    print("\nsaved:")
-    for f in ("study1_main_2x2_allT.png", "study1_grid_resolution_mesh.png",
-              "study1_ranking_flip.png"):
+    print("  saved:")
+    for f in (f"study1_main_2x2_allT_{suffix}.png",
+              f"study1_grid_resolution_mesh_{suffix}.png",
+              f"study1_ranking_flip_{suffix}.png"):
         p = out / f
-        print(f"  {p}  ({p.stat().st_size/1024:.0f} KB)")
+        print(f"    {p.name}  ({p.stat().st_size/1024:.0f} KB)")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--json", default=str(DEFAULT_JSON))
+    ap.add_argument("--out", default=str(DEFAULT_OUT))
+    ap.add_argument("--variant", default="both", choices=["both", "recurrent", "allsop"])
+    ap.add_argument("--combo", default="w_res_d_sram",
+                    choices=["w_res_d_res", "w_res_d_sram",
+                             "w_sram_r1_d_res", "w_sram_r1_d_sram"])
+    a = ap.parse_args()
+
+    jp = pathlib.Path(a.json)
+    if not jp.exists():
+        raise SystemExit(f"results JSON not found: {jp}")
+    out = pathlib.Path(a.out)
+    out.mkdir(parents=True, exist_ok=True)
+
+    todo = ["recurrent", "allsop"] if a.variant == "both" else [a.variant]
+    for v in todo:
+        print(f"\n=== {v} ===")
+        make(jp, out, v, a.combo, v)
 
 
 if __name__ == "__main__":
