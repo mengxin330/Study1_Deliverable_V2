@@ -3,7 +3,7 @@
 **[English](README.md) | [中文](README.zh.md)**
 
 > Preliminary Study 1 of the NSF proposal *Time as a First-Class Resource*
-> Data collected: 2026-11-16
+> Data collected: 2026-11-27
 > Data basis: **all 2,264 samples of the SHD test split**
 
 ---
@@ -361,6 +361,31 @@ access cost here. §5.3 quantifies it.
 | par | **1** | Self-defined (no literature basis) |
 
 **Cross-check for $E_{hop}$**: dividing Gorski 2016's 45nm router $P_{dyn}$ ($P_{total}$ 16–40 mW minus the dominant $P_{stat}$, i.e. ~5–7.3 mW) by the throughput $1.5\times10^9$ flit/s yields 3.3–4.9 pJ/hop, consistent with Loihi's measured value.
+
+---
+
+### 4.5 Number labels
+
+**Every number in this report carries one of four labels:**
+
+| Quantity | Label | Source |
+|---|---|---|
+| accuracy | **measured** | trained checkpoint evaluated on the 2,264-sample SHD test split |
+| spike count | **measured** | forward pass |
+| SOP | **measured** | spikes × fanout |
+| `flit_hops` | **measured** | spikes + placement + topology |
+| $E_{AC}$ = 0.9 pJ | **characterized** | Horowitz 2014 |
+| $E_{MAC}$ = 4.6 pJ | **characterized** | Horowitz 2014 |
+| $E_{ACC}$ = 10 pJ | **characterized** | Horowitz 2014 |
+| $P_{leak}$ = 11.9 nW/bit | **characterized** | 8 MB cache leakage |
+| $E_{hop}$ = 3.5 pJ | **characterized** | Loihi / Gorski |
+| $F$ = 2 GHz, par = 1 | **characterized** | assumption, §8.4 |
+| every µJ in §5.5 | **projected** | measured counts × characterized prices |
+| every bit count in §5.3 | **projected** | parameter / state counting |
+| $t_{inf}$ | **projected** | $(\text{SOP} + N T d)/(n F)$ |
+| realized transit latency | **simulated** | none in Study 1; Study 2 will use it |
+
+**How the tables refer to it**: §5.2 is `all measured`; §5.3, §5.5 and §6 are `projected (§4.5)`.
 
 ---
 
