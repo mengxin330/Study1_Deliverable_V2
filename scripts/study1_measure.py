@@ -684,10 +684,9 @@ def energy(model, T, sop, fh, mesh, ncores, slots, h2=0.0):
 
     rec_ops = h2 * a.get("width", 256) if has_table else 0.0
 
-    delay_access = rec_ops * E_ACC
-
-
-
+    window_read = rec_ops * E_ACC
+    table_read = rec_ops * E_ACC
+    delay_access = window_read + table_read      # reported as the in-SRAM total
     # ---- leakage, both ways ----------------------------------------------
 
     sb_bits_d_sram = N * ds * 32 + delay_bits + win_bits   # table occupies runtime SRAM
@@ -708,37 +707,29 @@ def energy(model, T, sop, fh, mesh, ncores, slots, h2=0.0):
 
     # ---- the four combinations -------------------------------------------
 
-    # weights resident, delay table in SRAM
+    # weights resident, delay table in SRAM: table read + window read
+    tot_w_res_d_sram = base + table_read + window_read + leak_sb_d_sram
 
-    tot_w_res_d_sram = base + delay_access + leak_sb_d_sram
+    # weights resident, delay table resident: window read only
+    tot_w_res_d_res = base + window_read + leak_sb_d_res
 
-    # weights resident, delay table resident
+    # weights in SRAM, delay table resident: weight read + window read
+    tot_w_sram_d_res = base + w_read + window_read + leak_sb_d_res
 
-    tot_w_res_d_res = base + leak_sb_d_res
-
-    # weights in SRAM, delay table resident
-
-    tot_w_sram_d_res = base + w_read + leak_sb_d_res
-
-    # weights in SRAM, delay table in SRAM -- charged separately, not merged
-
-    tot_w_sram_d_sram = base + w_read + delay_access + leak_sb_d_sram
-
-
+    # weights in SRAM, delay table in SRAM: weight read + table read + window read
+    tot_w_sram_d_sram = base + w_read + table_read + window_read + leak_sb_d_sram
 
     # ---- temporal state: depends on the delay table only -----------------
 
-    ts_d_sram = state + delay_access + leak_sb_d_sram
-
-    ts_d_res = state + leak_sb_d_res
-
-
+    ts_d_sram = state + table_read + window_read + leak_sb_d_sram
+    ts_d_res = state + window_read + leak_sb_d_res
 
     return dict(
 
         t_inf=t_inf * 1e6, syn=syn, neu=neu, state=state, comm=comm,
 
-        delay_access=delay_access, rec_ops=rec_ops,
+        delay_access=delay_access, window_read=window_read, table_read=table_read,
+        rec_ops=rec_ops,
 
         w_read=w_read, leak_w=leak_w,
 
@@ -896,7 +887,7 @@ def main():
 
                       f"{e['syn']/1e6:>7.3f}{e['neu']/1e6:>7.3f}"
 
-                      f"{e['state']/1e6:>8.3f}{e['delay_access']/1e6:>8.3f}"
+                      f"{e['state']/1e6:>8.3f}{e['window_read']/1e6:>8.3f}{e['table_read']/1e6:>7.3f}"
 
                       f"{e['leak_sb_d_sram']/1e6:>8.4f}{e['comm']/1e6:>7.3f}"
 
@@ -1000,7 +991,9 @@ def main():
 
                         "synaptic": e["syn"]/1e6, "neuron": e["neu"]/1e6,
 
-                        "state": e["state"]/1e6, "delay_access": e["delay_access"]/1e6,
+                        "state": e["state"]/1e6,
+                        "window_read": e["window_read"]/1e6,
+                        "table_read": e["table_read"]/1e6,
 
                         "comm": e["comm"]/1e6, "weight_read": e["w_read"]/1e6,
 

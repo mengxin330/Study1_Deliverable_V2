@@ -1,17 +1,11 @@
-"""Study 1 figures — three plots, produced once per delay-access variant.
+"""Study 1 figures — three plots.
 
-Two variants, identical layout:
-
-    recurrent  delay access charged on the recurrent edges only  (§4.2, main tables)
-    allsop     delay access charged on every synaptic operation  (§8.7, upper bound)
-
-Within a variant the placement is chosen with --combo; the default charges the
-delay access and shows it (weights resident, delay table in SRAM), because that
-is the only placement in which the energy ranking can differ from the SOP ranking.
+The placement is chosen with --combo.  The default is weights resident, delay
+table in SRAM; it pays both the table read and the window read, and it is one of
+the placements in which the energy ranking can differ from the SOP ranking.
 
 Usage
-    python plot_study1.py                       # both variants, default combo
-    python plot_study1.py --variant recurrent
+    python plot_study1.py
     python plot_study1.py --combo w_res_d_res
 """
 from __future__ import annotations
@@ -56,18 +50,13 @@ PARTS_RES = [("synaptic",    "synaptic ops (AC)",   "#4C72B0"),
 
 E_AC = 0.9   # pJ
 
-VARIANTS = {
-    "recurrent": ("recurrent_only",
-                  "delay access on the recurrent edges only (§4.2)"),
-    "allsop": ("all_synaptic",
-               "delay access on every synaptic operation (§8.7 upper bound)"),
-}
+VARIANT = ("recurrent_only", "two reads per activated connection (§5.5)")
 
 
-def load(path: pathlib.Path, variant: str, combo: str):
+def load(path: pathlib.Path, combo: str):
     d = json.loads(path.read_text(encoding="utf-8"))
-    src = d["variants"][VARIANTS[variant][0]]
-    print(f"source: {path.name} / {variant} / combo={combo}")
+    src = d["variants"][VARIANT[0]]
+    print(f"source: {path.name} / combo={combo}")
     print(f"        {len(src['configs'])} configurations")
 
     parts = PARTS_SRAM if "sram" in combo.split("_d_")[-1] else PARTS_RES
@@ -119,12 +108,12 @@ def panel(ax, E, SPK, T, ncores, parts, title, compact=False, rotate=0):
         ax.annotate("●", (x, top * 1.155), ha="center", fontsize=9, color="#222222")
 
 
-def make(jp: pathlib.Path, out: pathlib.Path, variant: str, combo: str, suffix: str):
-    E, SPK, ACC, SOP, parts = load(jp, variant, combo)
+def make(jp: pathlib.Path, out: pathlib.Path, combo: str):
+    E, SPK, ACC, SOP, parts = load(jp, combo)
 
     plt.rcParams.update({"font.size": 9, "axes.spines.top": False,
                          "axes.spines.right": False, "figure.dpi": 150})
-    vlabel = VARIANTS[variant][1]
+    vlabel = VARIANT[1]
     combo_note = {
         "w_res_d_res":   "weights resident, delay table resident",
         "w_res_d_sram":  "weights resident, delay table in SRAM",
@@ -155,7 +144,7 @@ def make(jp: pathlib.Path, out: pathlib.Path, variant: str, combo: str, suffix: 
         "same timestep are not merged (§8.2, §8.3).\n"
         "(6) par = 1, i.e. one core's worth of parallelism, no literature basis (§8.4); "
         "P_leak is an 8 MB cache value, so small-SRAM leakage is underestimated.\n"
-        f"(7) {vlabel}. The delay table is 65,536 × 6 bit and is charged to delay storage, "
+        f"(7) {vlabel}. The delay table is 65,536 × 6 bit, charged to delay storage, "
         "not to weights (§5.3).\n"
         "(8) Checkpoints are the best-validation epoch, not the best-test epoch.\n"
         "(9) The LIF bar is PMSN d_state=1, not the TASK 4 delay-free network: we could not "
@@ -166,7 +155,7 @@ def make(jp: pathlib.Path, out: pathlib.Path, variant: str, combo: str, suffix: 
              bbox=dict(boxstyle="round,pad=0.6", facecolor="#F7F7F7",
                        edgecolor="#CCCCCC", linewidth=0.7))
     fig.tight_layout()
-    fig.savefig(out / f"study1_main_2x2_allT_{suffix}.png", bbox_inches="tight")
+    fig.savefig(out / f"study1_main_2x2_allT.png", bbox_inches="tight")
     plt.close(fig)
 
     # ---------- figure 2: 3 resolutions x 3 meshes ----------
@@ -182,7 +171,7 @@ def make(jp: pathlib.Path, out: pathlib.Path, variant: str, combo: str, suffix: 
     fig.suptitle("Study 1 — energy breakdown across time-step resolutions and mesh sizes\n"
                  f"{combo_note}; {vlabel}", fontsize=11, y=0.98)
     fig.tight_layout(rect=[0, 0.03, 1, 0.96])
-    fig.savefig(out / f"study1_grid_resolution_mesh_{suffix}.png", bbox_inches="tight")
+    fig.savefig(out / f"study1_grid_resolution_mesh.png", bbox_inches="tight")
     plt.close(fig)
 
     # ---------- figure 3: ranking by three estimates ----------
@@ -211,13 +200,13 @@ def make(jp: pathlib.Path, out: pathlib.Path, variant: str, combo: str, suffix: 
     fig.suptitle(f"Simplified estimates vs the full model — {combo_note}\n{vlabel}",
                  fontsize=11, y=1.04)
     fig.tight_layout()
-    fig.savefig(out / f"study1_ranking_flip_{suffix}.png", bbox_inches="tight")
+    fig.savefig(out / f"study1_ranking_flip.png", bbox_inches="tight")
     plt.close(fig)
 
     print("  saved:")
-    for f in (f"study1_main_2x2_allT_{suffix}.png",
-              f"study1_grid_resolution_mesh_{suffix}.png",
-              f"study1_ranking_flip_{suffix}.png"):
+    for f in (f"study1_main_2x2_allT.png",
+              f"study1_grid_resolution_mesh.png",
+              f"study1_ranking_flip.png"):
         p = out / f
         print(f"    {p.name}  ({p.stat().st_size/1024:.0f} KB)")
 
@@ -226,7 +215,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default=str(DEFAULT_JSON))
     ap.add_argument("--out", default=str(DEFAULT_OUT))
-    ap.add_argument("--variant", default="both", choices=["both", "recurrent", "allsop"])
     ap.add_argument("--combo", default="w_res_d_sram",
                     choices=["w_res_d_res", "w_res_d_sram",
                              "w_sram_r1_d_res", "w_sram_r1_d_sram"])
@@ -238,10 +226,7 @@ def main():
     out = pathlib.Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    todo = ["recurrent", "allsop"] if a.variant == "both" else [a.variant]
-    for v in todo:
-        print(f"\n=== {v} ===")
-        make(jp, out, v, a.combo, v)
+    make(jp, out, a.combo)
 
 
 if __name__ == "__main__":

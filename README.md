@@ -330,8 +330,7 @@ i.e. the number of hidden2 spikes times the number of hidden2 targets. At T=100 
 
 **Only the recurrent edges carry a delay.** The input layer (61% of SOP), the feedforward
 hidden1→hidden2 edges and the hidden2→out edges have no delay entry to read and are not
-charged here. §8.7 reports the alternative — charging every synaptic operation — as an
-upper bound.
+charged here.
 
 **The stored delay *count* still differs** — $h^2 = 65{,}536$ for per-synapse versus $h = 256$
 for per-neuron — and that count drives the delay table's **bit** cost in category 5, not the
@@ -499,144 +498,84 @@ hop count tracks spike count almost linearly once the placement is fixed.
 
 ### 5.5 Energy after applying unit prices (µJ / inference)
 
-**One table per delay-table placement, with both weight placements side by side.**
-Every column shown enters the total; `delay access` is listed even when it is zero so
-each row can be checked by addition. **The two totals differ by exactly `w_read`.**
+**Two accesses per activated connection, not one.**
 
-**Every component column comes from the same measurement as the total in its table.**
+- **`window read`** — `spike_i[t − d_ij]` has to come out of storage. One access per
+  activated recurrent connection, **unavoidable in every placement**.
+- **`table read`** — reading the delay value `d_ij` itself. One more access, **only when
+  the delay table sits in SRAM**. When the table is resident the offset is a constant.
 
-**Recurrent edges only** — delay access covers $h_2^{spikes}\times256$ lookups (§4.2).
+`877,744` activated connections at T=100 (3,428.7 hidden2 spikes × 256 targets), so each
+read costs **8.778 µJ** at 10 pJ. The measurements record their sum as `delay access`
+(17.555 µJ); the two columns below split it.
 
-#### Delay table resident — recurrent edges only
+**One table per delay-table placement, both weight placements side by side.** Every column
+enters the total, so each row can be checked by addition. **The two totals differ by exactly
+`w_read`.**
 
-| T | Mesh | Model | synaptic | neuron | state | delay access | leakage | comm | w_read | **total (W resident)** | **total (W in SRAM)** |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | delay | 2.563 | 0.118 | 0.512 | 0.000 | 0.123 | 0.031 | 28.480 | **3.346** | **31.827** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** |
-| 50 | 4×4 | delay | 2.563 | 0.118 | 0.512 | 0.000 | 0.031 | 0.213 | 28.480 | **3.437** | **31.917** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** |
-| 50 | 8×8 | delay | 2.563 | 0.118 | 0.512 | 0.000 | 0.008 | 1.544 | 28.480 | **4.744** | **33.224** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** |
-| 100 | 2×2 | delay | 3.179 | 0.236 | 1.024 | 0.000 | 0.161 | 0.061 | 35.323 | **4.660** | **39.983** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** |
-| 100 | 4×4 | delay | 3.179 | 0.236 | 1.024 | 0.000 | 0.040 | 0.418 | 35.323 | **4.897** | **40.220** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** |
-| 100 | 8×8 | delay | 3.179 | 0.236 | 1.024 | 0.000 | 0.010 | 3.087 | 35.323 | **7.536** | **42.859** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** |
-| 140 | 2×2 | delay | 3.519 | 0.330 | 1.434 | 0.000 | 0.173 | 0.076 | 39.100 | **5.531** | **44.632** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** |
-| 140 | 4×4 | delay | 3.519 | 0.330 | 1.434 | 0.000 | 0.043 | 0.521 | 39.100 | **5.847** | **44.947** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** |
-| 140 | 8×8 | delay | 3.519 | 0.330 | 1.434 | 0.000 | 0.011 | 3.802 | 39.100 | **9.095** | **48.195** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** |
+#### Delay table resident
 
-#### Delay table in SRAM — recurrent edges only
+| T | Mesh | Model | synaptic | neuron | state | window read | table read | leakage | comm | w_read | **total (W resident)** | **total (W in SRAM)** |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 0.000 | 0.123 | 0.031 | 28.480 | **8.116** | **36.596** |
+|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** |
+|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** |
+| 50 | 4×4 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 0.000 | 0.031 | 0.213 | 28.480 | **8.206** | **36.687** |
+|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** |
+|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** |
+| 50 | 8×8 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 0.000 | 0.008 | 1.544 | 28.480 | **9.514** | **37.994** |
+|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** |
+|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** |
+| 100 | 2×2 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 0.000 | 0.161 | 0.061 | 35.323 | **13.438** | **48.761** |
+|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** |
+|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** |
+| 100 | 4×4 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 0.000 | 0.040 | 0.418 | 35.323 | **13.675** | **48.998** |
+|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** |
+|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** |
+| 100 | 8×8 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 0.000 | 0.010 | 3.087 | 35.323 | **16.313** | **51.636** |
+|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** |
+|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** |
+| 140 | 2×2 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 0.000 | 0.173 | 0.076 | 39.100 | **16.943** | **56.044** |
+|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** |
+|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** |
+| 140 | 4×4 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 0.000 | 0.043 | 0.521 | 39.100 | **17.259** | **56.359** |
+|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** |
+|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** |
+| 140 | 8×8 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 0.000 | 0.011 | 3.802 | 39.100 | **20.507** | **59.607** |
+|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** |
+|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** |
 
-| T | Mesh | Model | synaptic | neuron | state | delay access | leakage | comm | w_read | **total (W resident)** | **total (W in SRAM)** |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 1.803 | 0.031 | 28.480 | **9.797** | **38.277** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** |
-| 50 | 4×4 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 0.451 | 0.213 | 28.480 | **8.627** | **37.107** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** |
-| 50 | 8×8 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 0.113 | 1.544 | 28.480 | **9.619** | **38.099** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** |
-| 100 | 2×2 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 2.257 | 0.061 | 35.323 | **15.534** | **50.857** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** |
-| 100 | 4×4 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 0.564 | 0.418 | 35.323 | **14.199** | **49.522** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** |
-| 100 | 8×8 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 0.141 | 3.087 | 35.323 | **16.444** | **51.767** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** |
-| 140 | 2×2 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 2.502 | 0.076 | 39.100 | **19.272** | **58.373** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** |
-| 140 | 4×4 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 0.625 | 0.521 | 39.100 | **17.841** | **56.941** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** |
-| 140 | 8×8 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 0.156 | 3.802 | 39.100 | **20.652** | **59.753** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** |
+#### Delay table in SRAM
 
-**Every synaptic operation** — delay access covers all 3,532,306 operations (§8.7).
-
-#### Delay table resident — every synaptic operation (§8.7)
-
-| T | Mesh | Model | synaptic | neuron | state | delay access | leakage | comm | w_read | **total (W resident)** | **total (W in SRAM)** |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | delay | 2.563 | 0.118 | 0.512 | 0.000 | 0.123 | 0.031 | 28.480 | **3.346** | **31.827** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** |
-| 50 | 4×4 | delay | 2.563 | 0.118 | 0.512 | 0.000 | 0.031 | 0.213 | 28.480 | **3.437** | **31.917** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** |
-| 50 | 8×8 | delay | 2.563 | 0.118 | 0.512 | 0.000 | 0.008 | 1.544 | 28.480 | **4.744** | **33.224** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** |
-| 100 | 2×2 | delay | 3.179 | 0.236 | 1.024 | 0.000 | 0.161 | 0.061 | 35.323 | **4.660** | **39.983** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** |
-| 100 | 4×4 | delay | 3.179 | 0.236 | 1.024 | 0.000 | 0.040 | 0.418 | 35.323 | **4.897** | **40.220** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** |
-| 100 | 8×8 | delay | 3.179 | 0.236 | 1.024 | 0.000 | 0.010 | 3.087 | 35.323 | **7.536** | **42.859** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** |
-| 140 | 2×2 | delay | 3.519 | 0.330 | 1.434 | 0.000 | 0.173 | 0.076 | 39.100 | **5.531** | **44.632** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** |
-| 140 | 4×4 | delay | 3.519 | 0.330 | 1.434 | 0.000 | 0.043 | 0.521 | 39.100 | **5.847** | **44.947** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** |
-| 140 | 8×8 | delay | 3.519 | 0.330 | 1.434 | 0.000 | 0.011 | 3.802 | 39.100 | **9.095** | **48.195** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** |
-
-#### Delay table in SRAM — every synaptic operation (§8.7)
-
-| T | Mesh | Model | synaptic | neuron | state | delay access | leakage | comm | w_read | **total (W resident)** | **total (W in SRAM)** |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | delay | 2.563 | 0.118 | 0.512 | 28.480 | 1.803 | 0.031 | 28.480 | **33.508** | **61.988** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** |
-| 50 | 4×4 | delay | 2.563 | 0.118 | 0.512 | 28.480 | 0.451 | 0.213 | 28.480 | **32.337** | **60.818** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** |
-| 50 | 8×8 | delay | 2.563 | 0.118 | 0.512 | 28.480 | 0.113 | 1.544 | 28.480 | **33.330** | **61.810** |
-|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** |
-|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** |
-| 100 | 2×2 | delay | 3.179 | 0.236 | 1.024 | 35.323 | 2.257 | 0.061 | 35.323 | **42.080** | **77.403** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** |
-| 100 | 4×4 | delay | 3.179 | 0.236 | 1.024 | 35.323 | 0.564 | 0.418 | 35.323 | **40.744** | **76.067** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** |
-| 100 | 8×8 | delay | 3.179 | 0.236 | 1.024 | 35.323 | 0.141 | 3.087 | 35.323 | **42.990** | **78.313** |
-|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** |
-|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** |
-| 140 | 2×2 | delay | 3.519 | 0.330 | 1.434 | 39.100 | 2.502 | 0.076 | 39.100 | **46.961** | **86.061** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** |
-| 140 | 4×4 | delay | 3.519 | 0.330 | 1.434 | 39.100 | 0.625 | 0.521 | 39.100 | **45.529** | **84.629** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** |
-| 140 | 8×8 | delay | 3.519 | 0.330 | 1.434 | 39.100 | 0.156 | 3.802 | 39.100 | **48.341** | **87.441** |
-|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** |
-|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** |
-
+| T | Mesh | Model | synaptic | neuron | state | window read | table read | leakage | comm | w_read | **total (W resident)** | **total (W in SRAM)** |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 50 | 2×2 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 4.769 | 1.803 | 0.031 | 28.480 | **14.566** | **43.046** |
+|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.000 | 0.145 | 0.100 | 42.866 | **4.969** | **47.834** |
+|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.000 | 1.263 | 0.110 | 44.301 | **12.287** | **56.589** |
+| 50 | 4×4 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 4.769 | 0.451 | 0.213 | 28.480 | **13.396** | **41.876** |
+|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.000 | 0.036 | 0.694 | 42.866 | **5.454** | **48.320** |
+|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.000 | 0.316 | 0.772 | 44.301 | **12.002** | **56.303** |
+| 50 | 8×8 | delay | 2.563 | 0.118 | 0.512 | 4.769 | 4.769 | 0.113 | 1.544 | 28.480 | **14.388** | **42.868** |
+|  |  | lif | 3.858 | 0.162 | 0.704 | 0.000 | 0.000 | 0.009 | 5.028 | 42.866 | **9.761** | **52.627** |
+|  |  | mc | 3.987 | 1.295 | 5.632 | 0.000 | 0.000 | 0.079 | 5.569 | 44.301 | **16.562** | **60.863** |
+| 100 | 2×2 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 8.777 | 2.257 | 0.061 | 35.323 | **24.311** | **59.634** |
+|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.000 | 0.160 | 0.158 | 47.053 | **6.285** | **53.338** |
+|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.000 | 1.556 | 0.178 | 52.399 | **20.304** | **72.703** |
+| 100 | 4×4 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 8.777 | 0.564 | 0.418 | 35.323 | **22.976** | **58.299** |
+|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.000 | 0.040 | 1.080 | 47.053 | **7.086** | **54.140** |
+|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.000 | 0.389 | 1.250 | 52.399 | **20.209** | **72.608** |
+| 100 | 8×8 | delay | 3.179 | 0.236 | 1.024 | 8.777 | 8.777 | 0.141 | 3.087 | 35.323 | **25.222** | **60.545** |
+|  |  | lif | 4.235 | 0.324 | 1.408 | 0.000 | 0.000 | 0.010 | 7.749 | 47.053 | **13.726** | **60.779** |
+|  |  | mc | 4.716 | 2.591 | 11.264 | 0.000 | 0.000 | 0.097 | 9.018 | 52.399 | **27.685** | **80.084** |
+| 140 | 2×2 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 11.412 | 2.502 | 0.076 | 39.100 | **30.684** | **69.785** |
+|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.000 | 0.187 | 0.221 | 54.860 | **7.770** | **62.631** |
+|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.000 | 1.775 | 0.240 | 58.339 | **26.662** | **85.001** |
+| 140 | 4×4 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 11.412 | 0.625 | 0.521 | 39.100 | **29.253** | **68.353** |
+|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.000 | 0.047 | 1.519 | 54.860 | **8.928** | **63.789** |
+|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.000 | 0.444 | 1.661 | 58.339 | **26.752** | **85.091** |
+| 140 | 8×8 | delay | 3.519 | 0.330 | 1.434 | 11.412 | 11.412 | 0.156 | 3.802 | 39.100 | **32.064** | **71.165** |
+|  |  | lif | 4.937 | 0.453 | 1.971 | 0.000 | 0.000 | 0.012 | 10.941 | 54.860 | **18.315** | **73.175** |
+|  |  | mc | 5.251 | 3.627 | 15.770 | 0.000 | 0.000 | 0.111 | 11.933 | 58.339 | **36.691** | **95.030** |
 
 **T = 100 only — the delay-free reference of §7.5.** Reported separately because it was trained at
 a single resolution; it does not enter the 9-cell criteria counts of §6.
@@ -667,105 +606,36 @@ weight bits and their leakage still exist when resident (§5.3), they are report
 ### 6.1 (a) Temporal-state share ≥ 10%
 
 **Three weight configurations per table**: resident, in SRAM with reuse $R=1$, and in SRAM
-with $R=4$. **$R$ divides the weight read only** — the delay access is unchanged (Part B1).
-The delay share therefore moves with the weight configuration while the delay access does not.
+with $R=4$. **$R$ divides the weight read only.** The delay access — both reads — is unchanged
+by $R$.
 
 **(a) — delay table resident**
 
 | T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 19.0% | 2.0% | 6.1% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
-| 50 | 4×4 | 15.8% | 1.7% | 5.1% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
-| 50 | 8×8 | 11.0% | 1.6% | 4.4% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ❌ | ✅ |
-| 100 | 2×2 | 25.4% | 3.0% | 8.8% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
-| 100 | 4×4 | 21.7% | 2.6% | 7.8% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
-| 100 | 8×8 | 13.7% | 2.4% | 6.3% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
-| 140 | 2×2 | 29.0% | 3.6% | 10.5% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
-| 140 | 4×4 | 25.3% | 3.3% | 9.5% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
-| 140 | 8×8 | 15.9% | 3.0% | 7.7% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
+| 50 | 2×2 | 66.6% | 14.8% | 35.5% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
+| 50 | 4×4 | 64.7% | 14.5% | 34.7% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
+| 50 | 8×8 | 55.6% | 13.9% | 31.8% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ✅ | ✅ |
+| 100 | 2×2 | 74.1% | 20.4% | 44.7% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
+| 100 | 4×4 | 72.0% | 20.1% | 43.7% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
+| 100 | 8×8 | 60.1% | 19.0% | 39.0% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
+| 140 | 2×2 | 76.8% | 23.2% | 48.7% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
+| 140 | 4×4 | 74.7% | 22.9% | 47.7% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
+| 140 | 8×8 | 62.7% | 21.6% | 42.5% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
 
 **(a) — delay table in SRAM**
 
 | T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 72.3% | 18.5% | 41.9% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
-| 50 | 4×4 | 66.4% | 15.4% | 36.4% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
-| 50 | 8×8 | 56.1% | 14.2% | 32.2% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ✅ | ✅ |
-| 100 | 2×2 | 77.6% | 23.7% | 49.5% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
-| 100 | 4×4 | 73.0% | 20.9% | 45.0% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
-| 100 | 8×8 | 60.5% | 19.2% | 39.3% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
-| 140 | 2×2 | 79.6% | 26.3% | 52.8% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
-| 140 | 4×4 | 75.5% | 23.7% | 48.8% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
-| 140 | 8×8 | 63.0% | 21.8% | 42.7% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
-
-#### Upper bound: every synaptic operation (§8.7)
-
-**(a) — delay table resident**
-
-| T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 19.0% | 2.0% | 6.1% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
-| 50 | 4×4 | 15.8% | 1.7% | 5.1% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
-| 50 | 8×8 | 11.0% | 1.6% | 4.4% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ❌ | ✅ |
-| 100 | 2×2 | 25.4% | 3.0% | 8.8% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
-| 100 | 4×4 | 21.7% | 2.6% | 7.8% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
-| 100 | 8×8 | 13.7% | 2.4% | 6.3% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
-| 140 | 2×2 | 29.0% | 3.6% | 10.5% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
-| 140 | 4×4 | 25.3% | 3.3% | 9.5% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
-| 140 | 8×8 | 15.9% | 3.0% | 7.7% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
-
-**(a) — delay table in SRAM**
-
-| T | Mesh | delay (W res) | delay (W R=1) | delay (W R=4) | LIF (W res) | LIF (W R=1) | LIF (W R=4) | MC (W res) | MC (W R=1) | MC (W R=4) | (a) W res | (a) W R=1 | (a) W R=4 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | 91.9% | 49.7% | 75.8% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
-| 50 | 4×4 | 91.0% | 48.4% | 74.6% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
-| 50 | 8×8 | 87.3% | 47.1% | 72.0% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ✅ | ✅ |
-| 100 | 2×2 | 91.7% | 49.9% | 75.8% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
-| 100 | 4×4 | 90.6% | 48.5% | 74.5% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
-| 100 | 8×8 | 84.9% | 46.6% | 70.4% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
-| 140 | 2×2 | 91.6% | 50.0% | 75.9% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
-| 140 | 4×4 | 90.4% | 48.6% | 74.4% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
-| 140 | 8×8 | 84.2% | 46.5% | 70.0% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
-
-
-#### Putting the delay-free network in the LIF slot
-
-**TASK 4's brief is to use the delay-free network as the control instead of plain LIF. The numbers are
-reported here for completeness, but they cannot support an inference, because the delay-free network
-never reaches a usable accuracy.**
-
-**The blocking fact**: the delay-free model scores **49.81 %** on SHD test, against the delay model's
-**84.30 %** (§7.5). **We could not train it to usable accuracy within the time budget.** A control is
-only a control if it solves the task; at 34.5 points below, it does not. **Its energy figures describe a network that cannot replace the delay model**, so every
-comparison below is conditional on ignoring accuracy — which is precisely what a control may not do.
-
-Substituting it for LIF at T=100, across all three mesh sizes:
-
-| T | Mesh | no-delay | (a) | no-delay (SRAM) | (a) SRAM |
-|---|---|---|---|---|---|
-| 100 | 2×2 | **32.9 %** | ✅ | **4.3 %** | ❌ |
-| 100 | 4×4 | **27.8 %** | ✅ | **4.1 %** | ❌ |
-| 100 | 8×8 | **13.6 %** | ✅ | **3.5 %** | ❌ |
-
-**Resident 3/3, weight-reads 0/3 — but this row is not evidence.** Three reasons, in order of weight:
-
-1. **Accuracy disqualifies it.** Pass/fail on (a) presupposes the model is a viable alternative on the
-   task. A 49.81 % network is not, so its 32.9 % share says nothing about whether temporal state
-   matters in a network that works. **We could not train it to usable accuracy in the time budget.**
-   The failure matches what DelRec §A.4 describes (*"Recurrent delays mitigate the risk of exploding
-   gradients"*): with every delay zero the feedback path is one step long and the temporal skip
-   connections are gone. §7.5 documents the runs. **Recurrent SNNs without delays have been trained
-   on SHD above 50 % elsewhere; the claim here is about our budget, not about the architecture.**
-2. **A small model passes (a) more easily.** Its temporal state is ~1.05 µJ, *the same absolute amount*
-   as plain LIF's 1.41 µJ at T=100 (both are the neuron state plus a 2-slot window). It clears 10 %
-   only because its total energy is 3.20 µJ rather than LIF's 6.29.
-3. **It has no delay table, so its "temporal state" is a different quantity.** For delay, 98 % of the
-   temporal state is the delay table (§5.3); for no-delay there is no table at all.
-
-**What the row does show is the boundary of criterion (a)**: it measures the *share*, not the *amount*,
-of temporal state, and a network that removes the dominant temporal-state term can satisfy the share
-test purely by shrinking its denominator — including a network that cannot do the task.
+| 50 | 2×2 | 81.4% | 27.5% | 54.7% | 17.1% | 1.8% | 3.2% | 56.1% | 12.2% | 19.6% | ✅ | ✅ | ✅ |
+| 50 | 4×4 | 78.4% | 25.1% | 51.2% | 13.6% | 1.5% | 2.7% | 49.6% | 10.6% | 17.0% | ✅ | ✅ | ✅ |
+| 50 | 8×8 | 70.6% | 23.7% | 47.3% | 7.3% | 1.4% | 2.3% | 34.5% | 9.4% | 14.5% | ✅ | ✅ | ✅ |
+| 100 | 2×2 | 85.7% | 34.9% | 62.9% | 25.0% | 2.9% | 5.8% | 63.1% | 17.6% | 27.7% | ✅ | ✅ | ✅ |
+| 100 | 4×4 | 83.3% | 32.8% | 60.2% | 20.4% | 2.7% | 5.2% | 57.7% | 16.0% | 25.3% | ✅ | ✅ | ✅ |
+| 100 | 8×8 | 74.2% | 30.9% | 55.0% | 10.3% | 2.3% | 4.1% | 41.0% | 14.2% | 21.2% | ✅ | ✅ | ✅ |
+| 140 | 2×2 | 87.2% | 38.3% | 66.1% | 27.8% | 3.4% | 6.5% | 65.8% | 20.6% | 31.5% | ✅ | ✅ | ✅ |
+| 140 | 4×4 | 85.1% | 36.4% | 63.8% | 22.6% | 3.2% | 5.9% | 60.6% | 19.1% | 29.1% | ✅ | ✅ | ✅ |
+| 140 | 8×8 | 76.1% | 34.3% | 58.4% | 10.8% | 2.7% | 4.5% | 43.3% | 16.7% | 24.2% | ✅ | ✅ | ✅ |
 
 ### 6.2 (b) Ranking flips
 
@@ -774,20 +644,6 @@ quantity an SOP-only estimate already sees — so raising $R$ shrinks it and let
 order depart from the SOP order.
 
 **(b) — delay table resident**
-
-| T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
-|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-
-**(b) — delay table in SRAM**
 
 | T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
 |---|---|---|---|---|---|---|---|
@@ -801,73 +657,57 @@ order depart from the SOP order.
 | 140 | 4×4 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
 | 140 | 8×8 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
 
-#### Upper bound: every synaptic operation (§8.7)
-
-**(b) — delay table resident**
-
-| T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
-|---|---|---|---|---|---|---|---|
-| 50 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 50 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 50 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 100 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 100 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 100 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 140 | 2×2 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 140 | 4×4 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-| 140 | 8×8 | DL < LIF < MC | DL < LIF < MC | DL < LIF < MC | ❌ | ❌ | ❌ |
-
 **(b) — delay table in SRAM**
 
 | T | Mesh | energy order (W res) | energy order (W R=1) | energy order (W R=4) | SOP ≠ E (W res) | SOP ≠ E (W R=1) | SOP ≠ E (W R=4) |
 |---|---|---|---|---|---|---|---|
-| 50 | 2×2 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
-| 50 | 4×4 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
-| 50 | 8×8 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
-| 100 | 2×2 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
-| 100 | 4×4 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
-| 100 | 8×8 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
-| 140 | 2×2 | LIF < MC < DL | LIF < MC < DL | LIF < MC < DL | ✅ | ✅ | ✅ |
+| 50 | 2×2 | LIF < MC < DL | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 50 | 4×4 | LIF < MC < DL | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 50 | 8×8 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 100 | 2×2 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
+| 100 | 4×4 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
+| 100 | 8×8 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
+| 140 | 2×2 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
 | 140 | 4×4 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
-| 140 | 8×8 | LIF < MC < DL | LIF < DL < MC | LIF < DL < MC | ✅ | ✅ | ✅ |
+| 140 | 8×8 | LIF < DL < MC | DL < LIF < MC | DL < LIF < MC | ✅ | ❌ | ❌ |
 
+**The window read is what makes (b) hold in the resident placement.** Resident removes
+only the table read; the window read (8.78 µJ at T=100/2×2) is still paid, lifting the delay
+model from 4.66 to **13.44 µJ** — above LIF's 6.28 µJ — so its energy is no longer
+lowest and the SOP ranking disagrees.
+
+**`W SRAM` removes the effect again.** The weight read is 35.32 µJ and scales
+with SOP, inflating all three models alike, so the energy order falls back onto the SOP order.
+
+**Only `W resident` keeps (b) alive: 8–9 of 9 in both delay-table placements.**
 
 ### 6.3 Summary
 
-| Placement | (a) recurrent | (a) all-sop | (b) recurrent | (b) all-sop |
-|---|---|---|---|---|
-| **W res, D res** | 9/9 | 9/9 | **0/9** | **0/9** |
-| **W res, D SRAM** | 9/9 | 9/9 | **8/9** | **9/9** |
-| **W SRAM R=1, D res** | 8/9 | 8/9 | **0/9** | **0/9** |
-| **W SRAM R=1, D SRAM** | 9/9 | 9/9 | **0/9** | **9/9** |
-| **W SRAM R=4, D res** | 9/9 | 9/9 | **0/9** | **0/9** |
-| **W SRAM R=4, D SRAM** | 9/9 | 9/9 | **0/9** | **9/9** |
+| Placement | (a) | (a) all three models | (b) SOP ≠ energy |
+|---|---|---|---|
+| **W resident, D resident** | 9/9 | 8/9 | **8/9** |
+| **W resident, D in SRAM** | 9/9 | 8/9 | **9/9** |
+| **W SRAM R=1, D resident** | 9/9 | 0/9 | **0/9** |
+| **W SRAM R=1, D in SRAM** | 9/9 | 0/9 | **4/9** |
+| **W SRAM R=4, D resident** | 9/9 | 0/9 | **0/9** |
+| **W SRAM R=4, D in SRAM** | 9/9 | 0/9 | **4/9** |
 
-**Criterion (a) holds almost everywhere.** The three placements where it can fail are the ones
-with weights in SRAM and an empty delay table: there the weight read supplies 35–47 µJ while the
-delay model's temporal state is ~1 µJ, so the share falls to 1.6–3.0 %. The worst case is
-`W SRAM R=1, D res` at T=50/8×8, at 1.6 %.
+**Criterion (a) holds in every placement now** (9/9 for all six), because the window
+read puts real energy into the temporal state: the delay model's share is
+74.1 % resident and 85.7 % with the table in SRAM at T=100/2×2.
 
-**Criterion (b) is decided by the delay table's placement, not by the weight term and not by how
-the delay access is counted.**
+**Criterion (b) depends on where the weights live, not where the delay table lives.**
 
-| delay table | (b) recurrent | (b) all-sop |
+| weights | D resident | D in SRAM |
 |---|---|---|
-| **resident** | 0/9 in all three weight placements | **0/9** in all three |
-| **in SRAM** | 8/9 (W res), 0/9 (W SRAM) | **9/9** in all three |
+| resident | **8/9** | **9/9** |
+| SRAM R=1 | 0/9 | 4/9 |
+| SRAM R=4 | 0/9 | 4/9 |
 
-**With the table resident there is no delay access at all.** The delay model then spends only
-`synaptic + neuron + state + communication + leakage`, every one of which is proportional to its
-(very low) spike count, so its energy is the lowest in all nine configurations and the SOP
-ranking agrees with the energy ranking. **The flip requires the delay table to sit in SRAM**, where
-its lookup adds a term that SOP cannot see.
+**The `a_all` column is the stricter reading** (all three models above 10 %), which only the two
+`W resident` placements satisfy; the white paper's criterion asks for *at least one* model, so
+`(a)` is the one to quote.
 
-**Why `W SRAM R=1` fails even with the table in SRAM (recurrent count only):** there the weight
-read is 35 µJ and the delay access 8.8 µJ, so the delay model totals 50.9 µJ against LIF's
-53.3 µJ — still the cheapest, hence no flip. Charging the access on every operation (§8.7) adds
-26.5 µJ and pushes it above LIF, which is why that variant flips 9/9.
-
-**The report states both readings rather than picking the one that makes (b) hold.**
 ## 7. Analysis
 
 ### 7.1 With the delay table resident, the delay model is the cheapest of the three
@@ -1107,38 +947,7 @@ without delays*. Both bounds are reported above.
 
 **So the "weights in SRAM" column of §5.5 is a worst case, not a prediction.** The two regimes bracket the truth: weight reuse is what decides whether temporal state matters, which is itself an architectural question the white paper's Thrust 3 (memory tiers) is meant to answer.
 
-### 8.7 Does the delay access apply to every synaptic operation?
-
-**Two readings are defensible, and they are reported side by side.**
-
-The advisor's correction says *"add one delay access for each synaptic operation."* Read
-literally, every one of the `sop` synaptic operations pays 10 pJ to consult the delay table.
-Read physically, only the recurrent edges do: the input layer (61 % of SOP), the feedforward
-hidden1→hidden2 edges and the hidden2→out edges have **no delay entry to read**, so charging
-them corresponds to no hardware action.
-
-| | accesses at T=100/2×2 | delay access |
-|---|---|---|
-| **Recurrent edges only** (main tables) | 877,744 | 8.78 µJ |
-| **Every synaptic operation** (this section) | 3,532,306 | 35.32 µJ |
-
-**The main tables use the recurrent-edge count**; `results/study1_allsop_full.json` and the
-upper-bound table in §5.5 give the other reading. `results/study1_six_combos.json` carries both.
-
-**What changes between the two:**
-
-| | recurrent only | every operation |
-|---|---|---|
-| (a) temporal-state share | 9/9 in every placement | same 9/9, larger margin |
-| (b) ranking flip, `D resident` panels | 0/9 | **0/9** |
-| (b) ranking flip, `D in SRAM` panels | **8–9/9** | **9/9** |
-
-**What does not change is the placement pattern**: with the delay table resident there is no
-delay access at all, so the delay model's energy stays proportional to its SOP and criterion
-(b) fails regardless of how the access would have been counted. **The counting choice moves
-the magnitude; the placement chooses the outcome.**
-
-### 8.8 How to read these numbers
+### 8.7 How to read these numbers
 
 **Trustworthy:**
 - The relative ranking of the three models (under one set of modelling assumptions)
@@ -1183,7 +992,6 @@ result JSON:
 
 ```bash
 python scripts/study1_measure.py         --n -1 --save results/study1_partA_full.json
-python scripts/study1_measure_allsop.py   --n -1 --save results/study1_allsop_full.json
 python scripts/build_six_combos.py                       # -> results/study1_six_combos.json
 ```
 
@@ -1320,7 +1128,6 @@ subset, `--only delay|lif|mc` for one family).
 | **13** | **Ring depth varies with resolution** | $L = \lceil 1 + \max d + (1+\sigma) \rceil + 1$ is read per checkpoint: **49 / 55 / 51** for T = 50 / 100 / 140 with $\sigma = 10$. A trained delay distribution sets it, so the buffer cost is not constant across resolutions | §5.3 |
 | **14** | **Criterion (b) fails whenever the delay table is resident** | with no delay access the delay model's energy is proportional to its SOP, so the two rankings agree — 0/9 in all three resident placements | §6.2, §6.3 |
 | **15** | **The delay values are counted as "delay storage"** | 393 kbit is charged to category 3 rather than to the weight column, per the advisor's correction; the alternative placement is one of the four panels in §5.5 | §4.2, §5.3 |
-| **16** | **The delay access has two defensible counts** | recurrent edges only (877 k lookups, main tables) or every synaptic operation (3.53 M, §8.7). Both are reported; (b) moves from 8/9 to 9/9 in the `D in SRAM` placements | §8.7 |
 | **17** | **The 6-bit delay encoding is a design choice, not a measurement** | 43 trained values need 6 bits; storing them as FP32 would cost 5.3× more leakage and change (a) by ~15 points | §5.3 |
 | **18** | **Spike trains are exported for all nine checkpoints** | 233.5 M events, 138 MB across nine NPZ files; `layer` is 0/1 and layer widths differ (256 vs 352) | §9.4 |
 
@@ -1331,18 +1138,11 @@ subset, `--only delay|lif|mc` for one family).
 All six are generated by `scripts/plot_study1.py`, which reads
 `results/study1_six_combos.json` directly — so the figures cannot drift from the tables.
 
-**Every figure exists twice**, once per delay-access count (§8.7):
-
-| | `_recurrent` | `_allsop` |
-|---|---|---|
-| delay access | recurrent edges only (§4.2) | every synaptic operation (§8.7) |
-| lookups at T=100/2×2 | 877,744 | 3,532,306 |
-
 | File | Question it answers |
 |---|---|
-| `figs/study1_main_2x2_allT_{recurrent,allsop}.png` | The white paper's requested form: stacked energy breakdown of the three models with spike counts overlaid, 2×2 mesh, all three resolutions |
-| `figs/study1_grid_resolution_mesh_{recurrent,allsop}.png` | How resolution and mesh size change the energy composition — the full 3 × 3 sensitivity grid (3 resolutions × 3 meshes) |
-| `figs/study1_ranking_flip_{recurrent,allsop}.png` | Ranking by the three estimates at each resolution (2×2), marking which pair agrees — the delay model is cheapest by spike count and SOP but second by full-model energy in this placement |
+| `figs/study1_main_2x2_allT_.png` | The white paper's requested form: stacked energy breakdown of the three models with spike counts overlaid, 2×2 mesh, all three resolutions |
+| `figs/study1_grid_resolution_mesh_.png` | How resolution and mesh size change the energy composition — the full 3 × 3 sensitivity grid (3 resolutions × 3 meshes) |
+| `figs/study1_ranking_flip_.png` | Ranking by the three estimates at each resolution (2×2), marking which pair agrees — the delay model is cheapest by spike count and SOP but second by full-model energy in this placement |
 
 **Placement in the figures: weights resident, delay table in SRAM** — the only placement in which
 the energy ranking can differ from the SOP ranking (§6.2). Pass `--combo w_res_d_res` for the
